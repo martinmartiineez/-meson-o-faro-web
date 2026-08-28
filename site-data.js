@@ -1,6 +1,8 @@
 (function(){
   const cfg = window.OFARO_CONFIG || {};
   const apiUrl = (cfg.apiUrl || '').trim();
+  const spreadsheetId = (cfg.spreadsheetId || '').trim();
+  const sheets = Object.assign({carta:'Carta',menu:'Menu del dia',config:'Configuracion'}, cfg.sheets || {});
 
   if(!document.querySelector('link[data-ofaro-dynamic]')){
     const link = document.createElement('link');
@@ -46,46 +48,112 @@
       {id:'M003',fecha:'',tipo:'Segundo',plato:'Merluza a la gallega',descripcion:'Ejemplo editable',disponible:true,orden:1},
       {id:'M004',fecha:'',tipo:'Segundo',plato:'Pollo asado con patatas',descripcion:'Ejemplo editable',disponible:true,orden:2}
     ],
-    config: {
-      precioMenu: 12,
-      incrementoTerraza: 0.20,
-      direccion: 'Calle María, 53 · Ferrol'
-    }
+    config: {precioMenu:12,incrementoTerraza:0.20,direccion:'Calle María, 53 · Ferrol'}
   };
 
-  function clone(value){ return JSON.parse(JSON.stringify(value)); }
+  const clone = value => JSON.parse(JSON.stringify(value));
+  const norm = value => String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().toLowerCase();
+  const numberOrNull = value => value === '' || value === null || typeof value === 'undefined' ? null : (Number.isFinite(Number(value)) ? Number(value) : null);
+  const isAvailable = value => !['no','false','0'].includes(norm(value));
 
-  async function loadPublic(){
-    if(!apiUrl) return clone(fallback);
-    try{
-      const res = await fetch(apiUrl + '?action=public&_=' + Date.now(), {cache:'no-store'});
-      if(!res.ok) throw new Error('HTTP ' + res.status);
-      const data = await res.json();
-      if(!data || !Array.isArray(data.carta) || !Array.isArray(data.menu)) throw new Error('Formato inválido');
-      return data;
-    }catch(err){
-      console.warn('O Faro: se usa la copia local porque la API no respondió.', err);
-      return clone(fallback);
-    }
+  function gviz(sheetName){
+    return new Promise((resolve,reject)=>{
+      if(!spreadsheetId) return reject(new Error('Falta spreadsheetId'));
+      const callback = '__ofaro_' + Math.random().toString(36).slice(2);
+      const script = document.createElement('script');
+      let done = false;
+      let timer;
+      const finish = (fn,value) => {
+        if(done) return;
+        done = true;
+        clearTimeout(timer);
+        try{ delete window[callback]; }catch(_){ window[callback] = undefined; }
+        script.remove();
+        fn(value);
+      };
+      window[callback] = response => {
+        if(!response || response.status === 'error' || !response.table) return finish(reject,new Error('Google Sheets no devolvió datos'));
+        finish(resolve,response.table);
+      };
+      script.onerror = () => finish(reject,new Error('No se pudo acceder a Google Sheets'));
+      const params = new URLSearchParams({sheet:sheetName,headers:'1',tq:'select *',tqx:'out:json;responseHandler:' + callback,_:String(Date.now())});
+      script.src = 'https://docs.google.com/spreadsheets/d/' + encodeURIComponent(spreadsheetId) + '/gviz/tq?' + params.toString();
+      document.head.appendChild(script);
+      timer = setTimeout(()=>finish(reject,new Error('Tiempo de espera agotado')),8000);
+    });
   }
 
-  async function apiPost(action, payload, token){
-    if(!apiUrl) throw new Error('La API todavía no está conectada.');
-    const res = await fetch(apiUrl, {
-      method:'POST',
-      body: JSON.stringify(Object.assign({action:action, token:token || ''}, payload || {})),
-      cache:'no-store'
+  function rows(table){
+    const labels = (table.cols || []).map((col,i)=>norm(col.label || col.id || ('col'+i)));
+    return (table.rows || []).map(row=>{
+      const out = {};
+      labels.forEach((label,i)=>{
+        const cell = row.c && row.c[i];
+        out[label] = cell && cell.v !== null && typeof cell.v !== 'undefined' ? cell.v : '';
+      });
+      return out;
     });
+  }
+
+  const pick = (obj,key) => obj[norm(key)];
+
+  function parseCarta(table){
+    return rows(table).map(r=>({
+      id:pick(r,'ID'),categoria:pick(r,'Categoría'),producto:pick(r,'Producto'),descripcion:pick(r,'Descripción'),
+      precioMedia:numberOrNull(pick(r,'Precio media')),precioRacion:numberOrNull(pick(r,'Precio ración')),
+      disponible:isAvailable(pick(r,'Disponible')),orden:Number(pick(r,'Orden'))||0
+    })).filter(x=>x.producto && x.categoria);
+  }
+
+  function parseMenu(table){
+    return rows(table).map(r=>({
+      id:pick(r,'ID'),fecha:pick(r,'Fecha'),tipo:pick(r,'Tipo'),plato:pick(r,'Plato'),descripcion:pick(r,'Descripción'),
+      disponible:isAvailable(pick(r,'Disponible')),orden:Number(pick(r,'Orden'))||0
+    })).filter(x=>x.plato && x.tipo);
+  }
+
+  function parseConfig(table){
+    const values = {};
+    rows(table).forEach(r=>{ const key = norm(pick(r,'Campo')); if(key) values[key] = pick(r,'Valor'); });
+    return {
+      precioMenu:numberOrNull(values['precio menu']) ?? 12,
+      incrementoTerraza:numberOrNull(values['incremento terraza']) ?? 0.20,
+      direccion:values['direccion'] || 'Calle María, 53 · Ferrol'
+    };
+  }
+
+  async function loadFromSheets(){
+    const [cartaTable,menuTable,configTable] = await Promise.all([gviz(sheets.carta),gviz(sheets.menu),gviz(sheets.config)]);
+    return {carta:parseCarta(cartaTable),menu:parseMenu(menuTable),config:parseConfig(configTable),source:'sheets'};
+  }
+
+  async function loadPublic(){
+    if(apiUrl){
+      try{
+        const res = await fetch(apiUrl + '?action=public&_=' + Date.now(), {cache:'no-store'});
+        if(!res.ok) throw new Error('HTTP ' + res.status);
+        const data = await res.json();
+        if(!data || !Array.isArray(data.carta) || !Array.isArray(data.menu)) throw new Error('Formato inválido');
+        data.source = 'api';
+        return data;
+      }catch(err){ console.warn('O Faro: la API no respondió.',err); }
+    }
+    if(spreadsheetId){
+      try{ return await loadFromSheets(); }
+      catch(err){ console.warn('O Faro: Google Sheets no está accesible; se usa la copia local.',err); }
+    }
+    const data = clone(fallback);
+    data.source = 'fallback';
+    return data;
+  }
+
+  async function apiPost(action,payload,token){
+    if(!apiUrl) throw new Error('La API de escritura todavía no está conectada.');
+    const res = await fetch(apiUrl,{method:'POST',body:JSON.stringify(Object.assign({action,token:token||''},payload||{})),cache:'no-store'});
     const data = await res.json();
     if(!res.ok || !data || data.ok === false) throw new Error((data && data.error) || 'No se pudo completar la operación.');
     return data;
   }
 
-  window.OfaroData = {
-    apiUrl,
-    sheetUrl: cfg.sheetUrl || '',
-    fallback,
-    loadPublic,
-    apiPost
-  };
+  window.OfaroData = {apiUrl,spreadsheetId,sheetUrl:cfg.sheetUrl||'',fallback,loadPublic,apiPost};
 })();
