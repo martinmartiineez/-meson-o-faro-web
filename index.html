@@ -1,117 +1,137 @@
 <!doctype html>
 <html lang="es">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#111111">
-<title>Mesón O Faro</title>
-<style>
-:root{--ink:#111;--paper:#fff;--soft:#f2f0ec;--gold:#c7a664;--r:28px}
-*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:var(--ink);background:#111}a{text-decoration:none;color:inherit}img{display:block;width:100%}.serif{font-family:Georgia,"Times New Roman",serif}
-.hero{min-height:78svh;color:#fff;position:relative;overflow:hidden;padding:calc(18px + env(safe-area-inset-top)) 20px 84px;background:linear-gradient(180deg,rgba(0,0,0,.16),rgba(0,0,0,.25) 45%,rgba(0,0,0,.78)),url("https://images.unsplash.com/photo-1414235077428-338989a2e8c0?auto=format&fit=crop&w=1800&q=88") center/cover}
-.top{max-width:1160px;margin:auto;display:flex;justify-content:space-between;align-items:center;gap:14px}.logo{font-family:Georgia,serif;font-size:1.35rem;font-weight:700;letter-spacing:.02em}.logo small{display:block;font-family:Inter,sans-serif;text-transform:uppercase;letter-spacing:.18em;font-size:.5rem;margin-top:2px}
-.btn{display:inline-flex;align-items:center;justify-content:center;border-radius:999px;padding:12px 17px;font-weight:800;background:#fff;color:#111}.btn.ghost{background:rgba(255,255,255,.12);color:#fff;border:1px solid rgba(255,255,255,.3);backdrop-filter:blur(10px)}.btn.dark{background:#111;color:#fff}
-.hero-copy{max-width:1160px;margin:18svh auto 0}.eyebrow{text-transform:uppercase;letter-spacing:.16em;font-weight:800;color:#e6c77d;font-size:.74rem}.hero h1{font-size:clamp(3.1rem,11vw,7rem);line-height:.84;letter-spacing:-.055em;font-weight:500;margin:10px 0 0}.hero h1 em{font-weight:400}.hero p{max-width:560px;color:rgba(255,255,255,.82);font-size:1.05rem;line-height:1.55}.actions{display:flex;gap:9px;flex-wrap:wrap;margin-top:26px}.dots{display:flex;gap:7px;margin-top:28px}.dots i{display:block;width:7px;height:7px;background:rgba(255,255,255,.4);border-radius:99px}.dots i:first-child{width:24px;background:var(--gold)}
-.sheet{position:relative;z-index:5;margin-top:-40px;background:#fff;border-radius:38px 38px 0 0;overflow:hidden}.wrap{max-width:1160px;margin:auto;padding:40px 20px 118px}.section{padding:28px 0}.kicker{text-transform:uppercase;letter-spacing:.14em;color:#777;font-size:.76rem;font-weight:800;margin-bottom:9px}h2{font-size:clamp(2.15rem,7vw,4.6rem);letter-spacing:-.045em;line-height:.95;margin:0}
-.chips{display:flex;gap:8px;overflow:auto;margin:18px 0 14px;scrollbar-width:none}.chip{white-space:nowrap;border-radius:999px;border:1px solid #ddd;padding:10px 15px;font-weight:750;background:#fff}.chip.active{background:#111;color:#fff;border-color:#111}
-.cards{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(245px,78vw);gap:14px;overflow:auto;scroll-snap-type:x mandatory;scrollbar-width:none;padding-bottom:8px}.card{height:365px;border-radius:26px;overflow:hidden;position:relative;background:#111;scroll-snap-align:start}.card img{height:100%;object-fit:cover}.card:after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,transparent 35%,rgba(0,0,0,.88))}.card-copy{position:absolute;z-index:2;left:18px;right:18px;bottom:17px;color:#fff}.card h3{margin:0;font-size:1.25rem}.card p{margin:5px 0 12px;color:#ccc;font-size:.88rem}.price{font-weight:900;font-size:1.1rem}
-.day{background:#111;color:#fff;border-radius:26px;padding:25px;display:grid;gap:18px;position:relative;overflow:hidden}.day:before{content:"";position:absolute;width:240px;height:240px;border-radius:50%;background:rgba(199,166,100,.15);right:-100px;top:-130px}.day h3{font-size:2.1rem;margin:2px 0 9px}.day p{color:#bbb;line-height:1.6;margin:0;max-width:560px}.day-bottom{display:flex;justify-content:space-between;align-items:center;gap:12px;position:relative}.day-price{font-family:Georgia,serif;color:#e6c77d;font-size:3.5rem}
-.about{display:grid;gap:18px}.about img{height:340px;object-fit:cover;border-radius:26px}.about p{color:#5a5a5a;line-height:1.7;font-size:1.02rem}.facts{display:grid;grid-template-columns:1fr 1fr;gap:10px}.fact{padding:18px;border-radius:20px;background:var(--soft)}.fact strong{display:block;font-size:1.3rem}.fact span{font-size:.84rem;color:#666}
-.gallery{display:grid;grid-template-columns:1fr 1fr;gap:10px}.gallery img{height:190px;object-fit:cover;border-radius:18px}.gallery img:first-child{grid-column:1/-1;height:300px}
-.visit{background:var(--soft);border-radius:26px;padding:24px;display:grid;gap:18px}.visit h3{font-size:2rem;margin:0}.visit p{color:#666;line-height:1.6}.visit-actions{display:flex;gap:8px;flex-wrap:wrap}
-footer{background:#111;color:#fff;padding:42px 20px 110px}.footer-inner{max-width:1160px;margin:auto}.footer-title{font-family:Georgia,serif;font-size:clamp(2.5rem,9vw,5rem);line-height:.9}.muted{color:#888;line-height:1.7;margin-top:18px}
-.bottom{position:fixed;z-index:50;left:12px;right:12px;bottom:calc(10px + env(safe-area-inset-bottom));margin:auto;max-width:520px;display:grid;grid-template-columns:1fr 1.15fr 1fr;gap:7px;padding:9px;background:rgba(255,255,255,.95);border:1px solid rgba(0,0,0,.08);border-radius:24px;box-shadow:0 16px 50px rgba(0,0,0,.18);backdrop-filter:blur(18px)}.bottom a{min-height:48px;display:flex;align-items:center;justify-content:center;border-radius:17px;font-weight:800;font-size:.84rem;color:#666}.bottom .main{background:#111;color:#fff}
-@media(min-width:760px){.hero{min-height:760px;padding-left:40px;padding-right:40px}.hero-copy{margin-top:180px}.wrap{padding-left:40px;padding-right:40px}.cards{grid-auto-columns:300px}.day{grid-template-columns:1fr auto;align-items:end;padding:34px}.about{grid-template-columns:1.08fr .92fr;align-items:center;gap:42px}.gallery{grid-template-columns:1.5fr 1fr 1fr}.gallery img,.gallery img:first-child{height:340px;grid-column:auto}.bottom{display:none}footer{padding-bottom:50px}}
-
-.menu-note{margin:18px 0 0;color:#707070;font-size:.88rem;line-height:1.55}
-.menu-sections{display:grid;gap:18px;margin-top:28px}
-.menu-group{border:1px solid #e6e3de;border-radius:26px;padding:22px;background:#fff}
-.menu-group-head{display:flex;align-items:end;justify-content:space-between;gap:14px;padding-bottom:14px;border-bottom:1px solid #eee}
-.menu-group h3{font-family:Georgia,"Times New Roman",serif;font-size:2rem;line-height:1;margin:0;letter-spacing:-.035em}
-.menu-columns{font-size:.7rem;color:#888;text-transform:uppercase;letter-spacing:.11em;font-weight:800;white-space:nowrap}
-.menu-list{display:grid}
-.menu-item{display:grid;grid-template-columns:1fr auto;gap:18px;padding:16px 0;border-bottom:1px solid #eee;align-items:start}
-.menu-item:last-child{border-bottom:0}
-.menu-item h4{font-size:1rem;margin:0 0 5px;letter-spacing:-.01em}
-.menu-item p{font-size:.84rem;color:#777;line-height:1.45;margin:0;max-width:640px}
-.menu-prices{text-align:right;font-weight:900;white-space:nowrap;display:flex;gap:8px;align-items:baseline}
-.menu-prices span{display:inline-block;min-width:58px}
-.menu-prices small{display:block;color:#999;font-weight:700;font-size:.62rem;text-transform:uppercase;letter-spacing:.08em;margin-bottom:2px}
-.menu-footer-note{background:var(--soft);border-radius:20px;padding:16px 18px;margin-top:18px;color:#555;font-size:.84rem;line-height:1.55}
-@media(min-width:900px){.menu-sections{grid-template-columns:1fr 1fr;align-items:start}.menu-group.full{grid-column:1/-1}}
-
-
-
-
-.schedule-card{background:#fff;border:1px solid #e6e3de;border-radius:24px;overflow:hidden;box-shadow:0 10px 30px rgba(0,0,0,.05);margin-top:18px}
-.schedule-head,.schedule-row{display:grid;grid-template-columns:94px minmax(0,1fr) minmax(0,1fr);align-items:center}
-.schedule-head{background:#111;color:#fff;padding:10px 14px;font-size:.68rem;font-weight:800;text-transform:uppercase;letter-spacing:.08em}
-.schedule-head div:not(:first-child){text-align:center}
-.schedule-row{padding:14px;border-bottom:1px solid #eee}
-.schedule-row:last-child{border-bottom:0}
-.schedule-day{font-weight:850}
-.schedule-time{text-align:center;font-weight:750;font-size:.84rem;line-height:1.15;white-space:nowrap}
-.schedule-row.thursday{background:#faf8f3}
-.schedule-row.closed{background:#f5f3ef}
-.schedule-closed{grid-column:2/4;text-align:center;color:#777;font-weight:800}
-@media(max-width:390px){
-  .schedule-head,.schedule-row{grid-template-columns:82px minmax(0,1fr) minmax(0,1fr)}
-  .schedule-head{padding:9px 10px;font-size:.62rem}
-  .schedule-row{padding:12px 10px}
-  .schedule-day{font-size:.9rem}
-  .schedule-time{font-size:.76rem;letter-spacing:-.02em}
-}
-@media(min-width:760px){
-  .schedule-head,.schedule-row{grid-template-columns:120px 1fr 1fr}
-  .schedule-head{padding:11px 18px;font-size:.72rem}
-  .schedule-row{padding:15px 18px}
-  .schedule-time{font-size:.94rem}
-}
-.schedule-time{font-size:.96rem}}
-
-</style>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#111111">
+  <meta name="description" content="Mesón O Faro en Ferrol. Consulta nuestra carta, menú del día, horarios y ubicación.">
+  <title>Mesón O Faro</title>
+  <link rel="stylesheet" href="styles.css">
 </head>
 <body>
 <header class="hero" id="inicio">
- <div class="top"><a class="logo" href="#inicio">Mesón O Faro<small>Ferrol · Galicia</small></a><a class="btn" href="#visitanos">Cómo llegar</a></div>
- <div class="hero-copy"><div class="eyebrow">Mesón · Ferrol</div><h1 class="serif">Cocina de siempre,<br><em>para disfrutar sin prisa.</em></h1><p>Una mesa sencilla, producto bien tratado y el ambiente de un mesón al que apetece volver.</p><div class="actions"><a class="btn" href="carta.html">Ver la carta</a><a class="btn ghost" href="menu-dia.html">Menú del día</a></div><div class="dots"><i></i><i></i><i></i><i></i></div></div>
+  <div class="top">
+    <a class="logo" href="#inicio">Mesón O Faro<small>Ferrol · Galicia</small></a>
+    <a class="btn" href="#visitanos">Cómo llegar</a>
+  </div>
+
+  <div class="hero-copy">
+    <div class="eyebrow">Mesón · Ferrol</div>
+    <h1 class="serif">Cocina de siempre,<br><em>para disfrutar sin prisa.</em></h1>
+    <p>Una mesa sencilla, producto bien tratado y el ambiente de un mesón al que apetece volver.</p>
+    <div class="actions">
+      <a class="btn" href="carta.html">Ver la carta</a>
+      <a class="btn ghost" href="menu-dia.html">Menú del día</a>
+    </div>
+    <div class="dots"><i></i><i></i><i></i><i></i></div>
+  </div>
 </header>
-<main class="sheet"><div class="wrap">
-<section class="section" id="carta-preview">
-  <div class="kicker">Nuestra carta</div>
-  <h2 class="serif">Elige a tu ritmo.</h2>
-  <p class="menu-note">Consulta la carta completa por categorías, con precios claros y una navegación pensada para móvil.</p>
-  <div class="actions" style="margin-top:18px"><a class="btn dark" href="carta.html">Abrir carta</a></div>
-</section>
-<section class="section" id="menu-dia"><div class="day"><div><div class="kicker" style="color:#d8ba70">Entre semana</div><h3 class="serif">Menú del día</h3><p>Consulta el menú diario en su propia página. Más adelante lo conectaremos a un panel para poder actualizarlo sin tocar el código.</p></div><div class="day-bottom"><div class="day-price">12 €</div><a class="btn" href="menu-dia.html">Ver menú</a></div></div></section>
-<section class="section"><div class="about"><img src="https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=1200&q=88" alt="Interior de restaurante"><div><div class="kicker">Mesón O Faro</div><h2 class="serif">Comer bien.<br>Estar a gusto.</h2><p>Estamos en el centro de Ferrol, en la Calle María, 51. Queremos que la experiencia sea fácil desde antes de entrar: ver la carta, consultar el menú del día y saber cómo llegar en pocos segundos.</p><div class="facts"><div class="fact"><strong>Ferrol</strong><span>Calle María, 51</span></div><div class="fact"><strong>Horario</strong><span>Consulta el horario completo más abajo.</span></div></div></div></div></section>
-<section class="section"><div class="kicker">Galería</div><h2 class="serif" style="margin-bottom:18px">De nuestra mesa.</h2><p class="menu-note" style="margin-bottom:18px">Estas imágenes siguen siendo provisionales. Las sustituiremos por fotografías reales de O Faro.</p><div class="gallery"><img src="https://images.unsplash.com/photo-1547592180-85f173990554?auto=format&fit=crop&w=1200&q=85" alt="Gastronomía"><img src="https://images.unsplash.com/photo-1559339352-11d035aa65de?auto=format&fit=crop&w=900&q=85" alt="Restaurante"><img src="https://images.unsplash.com/photo-1544148103-0773bf10d330?auto=format&fit=crop&w=900&q=85" alt="Mesa"></div></section>
-<section class="section" id="visitanos"><div class="visit"><div><div class="kicker">Dónde estamos</div><h3 class="serif">Calle María, 51 · Ferrol</h3><div class="kicker" style="margin-top:18px">Horario</div><div class="schedule-card" aria-label="Horario semanal">
-<div class="schedule-head"><div>Día</div><div>Mediodía</div><div>Noche</div></div>
-<div class="schedule-row"><div class="schedule-day">Lunes</div><div class="schedule-time">11:00–16:00</div><div class="schedule-time">20:00–23:00</div></div>
-<div class="schedule-row"><div class="schedule-day">Martes</div><div class="schedule-time">11:00–16:00</div><div class="schedule-time">20:00–23:00</div></div>
-<div class="schedule-row"><div class="schedule-day">Miércoles</div><div class="schedule-time">11:00–16:00</div><div class="schedule-time">20:00–23:00</div></div>
-<div class="schedule-row thursday"><div class="schedule-day">Jueves</div><div class="schedule-time">11:00–16:00</div><div class="schedule-time">—</div></div>
-<div class="schedule-row"><div class="schedule-day">Viernes</div><div class="schedule-time">11:00–16:00</div><div class="schedule-time">20:00–23:00</div></div>
-<div class="schedule-row"><div class="schedule-day">Sábado</div><div class="schedule-time">11:00–16:00</div><div class="schedule-time">20:00–23:00</div></div>
-<div class="schedule-row closed"><div class="schedule-day">Domingo</div><div class="schedule-closed">Cerrado</div></div>
-</div></div>
-<div class="schedule-row"><div class="schedule-day">Lunes</div><div class="schedule-time">11:00–16:00</div><div class="schedule-time">20:00–23:00</div></div>
-<div class="schedule-row"><div class="schedule-day">Martes</div><div class="schedule-time">11:00–16:00</div><div class="schedule-time">20:00–23:00</div></div>
-<div class="schedule-row"><div class="schedule-day">Miércoles</div><div class="schedule-time">11:00–16:00</div><div class="schedule-time">20:00–23:00</div></div>
-<div class="schedule-row thursday"><div class="schedule-day">Jueves</div><div class="schedule-time">11:00–16:00</div><div class="schedule-time">—</div></div>
-<div class="schedule-row"><div class="schedule-day">Viernes</div><div class="schedule-time">11:00–16:00</div><div class="schedule-time">20:00–23:00</div></div>
-<div class="schedule-row"><div class="schedule-day">Sábado</div><div class="schedule-time">11:00–16:00</div><div class="schedule-time">20:00–23:00</div></div>
-<div class="schedule-row closed"><div class="schedule-day">Domingo</div><div class="schedule-closed">Cerrado</div></div>
-</div></div>
-<div class="schedule-row"><div class="schedule-day">Martes</div><div class="schedule-time">11:00–16:00 <span class="split">·</span> 20:00–23:00</div></div>
-<div class="schedule-row"><div class="schedule-day">Miércoles</div><div class="schedule-time">11:00–16:00 <span class="split">·</span> 20:00–23:00</div></div>
-<div class="schedule-row thursday"><div class="schedule-day">Jueves</div><div class="schedule-time">11:00–16:00</div></div>
-<div class="schedule-row"><div class="schedule-day">Viernes</div><div class="schedule-time">11:00–16:00 <span class="split">·</span> 20:00–23:00</div></div>
-<div class="schedule-row"><div class="schedule-day">Sábado</div><div class="schedule-time">11:00–16:00 <span class="split">·</span> 20:00–23:00</div></div>
-<div class="schedule-row closed"><div class="schedule-day">Domingo</div><div class="schedule-time">Cerrado</div></div>
-</div></div><div class="visit-actions"><a class="btn dark" target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&query=Calle+Maria+51+Ferrol">Abrir en Maps</a></div></div></section>
-</div></main>
-<footer><div class="footer-inner"><div class="footer-title">Mesón<br>O Faro.</div><div class="muted">Calle María, 51 · Ferrol<br>Prototipo web en desarrollo.</div></div></footer>
-<nav class="bottom"><a href="carta.html">Carta</a><a class="main" href="menu-dia.html">Menú del día</a><a href="#visitanos">Llegar</a></nav>
-</body></html>
+
+<main class="sheet">
+  <div class="wrap">
+    <section class="section" id="carta-preview">
+      <div class="kicker">Nuestra carta</div>
+      <h2 class="serif">Elige a tu ritmo.</h2>
+      <p class="menu-note">Consulta la carta completa por categorías, con precios claros y una navegación pensada para móvil.</p>
+      <div class="actions" style="margin-top:18px">
+        <a class="btn dark" href="carta.html">Abrir carta</a>
+      </div>
+    </section>
+
+    <section class="section" id="menu-dia">
+      <div class="day">
+        <div>
+          <div class="kicker" style="color:#d8ba70">Entre semana</div>
+          <h3 class="serif">Menú del día</h3>
+          <p>Consulta el menú diario en su propia página. Más adelante lo conectaremos a un panel para poder actualizarlo sin tocar el código.</p>
+        </div>
+        <div class="day-bottom">
+          <div class="day-price">12 €</div>
+          <a class="btn" href="menu-dia.html">Ver menú</a>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="about">
+        <img src="https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=1200&q=88" alt="Interior de restaurante">
+        <div>
+          <div class="kicker">Mesón O Faro</div>
+          <h2 class="serif">Comer bien.<br>Estar a gusto.</h2>
+          <p>Estamos en el centro de Ferrol, en la Calle María, 51. Queremos que la experiencia sea fácil desde antes de entrar: ver la carta, consultar el menú del día y saber cómo llegar en pocos segundos.</p>
+          <div class="facts">
+            <div class="fact"><strong>Ferrol</strong><span>Calle María, 51</span></div>
+            <div class="fact"><strong>Horario</strong><span>Consulta el horario completo más abajo.</span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="kicker">Galería</div>
+      <h2 class="serif" style="margin-bottom:18px">De nuestra mesa.</h2>
+      <p class="menu-note" style="margin-bottom:18px">Estas imágenes siguen siendo provisionales. Las sustituiremos por fotografías reales de O Faro.</p>
+      <div class="gallery">
+        <img src="https://images.unsplash.com/photo-1547592180-85f173990554?auto=format&fit=crop&w=1200&q=85" alt="Gastronomía">
+        <img src="https://images.unsplash.com/photo-1559339352-11d035aa65de?auto=format&fit=crop&w=900&q=85" alt="Restaurante">
+        <img src="https://images.unsplash.com/photo-1544148103-0773bf10d330?auto=format&fit=crop&w=900&q=85" alt="Mesa">
+      </div>
+    </section>
+
+    <section class="section" id="visitanos">
+      <div class="visit">
+        <div>
+          <div class="kicker">Dónde estamos</div>
+          <h3 class="serif">Calle María, 51 · Ferrol</h3>
+          <div class="kicker" style="margin-top:20px">Horario</div>
+
+          <div class="schedule-card" aria-label="Horario semanal">
+            <div class="schedule-head">
+              <div>Día</div><div>Mediodía</div><div>Noche</div>
+            </div>
+            <div class="schedule-row">
+              <div class="schedule-day">Lunes</div><div class="schedule-time">11:00–16:00</div><div class="schedule-time">20:00–23:00</div>
+            </div>
+            <div class="schedule-row">
+              <div class="schedule-day">Martes</div><div class="schedule-time">11:00–16:00</div><div class="schedule-time">20:00–23:00</div>
+            </div>
+            <div class="schedule-row">
+              <div class="schedule-day">Miércoles</div><div class="schedule-time">11:00–16:00</div><div class="schedule-time">20:00–23:00</div>
+            </div>
+            <div class="schedule-row thursday">
+              <div class="schedule-day">Jueves</div><div class="schedule-time">11:00–16:00</div><div class="schedule-time">—</div>
+            </div>
+            <div class="schedule-row">
+              <div class="schedule-day">Viernes</div><div class="schedule-time">11:00–16:00</div><div class="schedule-time">20:00–23:00</div>
+            </div>
+            <div class="schedule-row">
+              <div class="schedule-day">Sábado</div><div class="schedule-time">11:00–16:00</div><div class="schedule-time">20:00–23:00</div>
+            </div>
+            <div class="schedule-row closed">
+              <div class="schedule-day">Domingo</div><div class="schedule-closed">Cerrado</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="visit-actions">
+          <a class="btn dark" target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&query=Calle+Maria+51+Ferrol">Abrir en Maps</a>
+        </div>
+      </div>
+    </section>
+  </div>
+</main>
+
+<footer>
+  <div class="footer-inner">
+    <div class="footer-title">Mesón<br>O Faro.</div>
+    <div class="muted">Calle María, 51 · Ferrol<br>Prototipo web en desarrollo.</div>
+  </div>
+</footer>
+
+<nav class="bottom" aria-label="Navegación móvil">
+  <a href="carta.html">Carta</a>
+  <a class="main" href="menu-dia.html">Menú del día</a>
+  <a href="#visitanos">Llegar</a>
+</nav>
+</body>
+</html>
