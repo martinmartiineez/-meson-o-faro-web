@@ -2,6 +2,14 @@
   const cfg = window.OFARO_CONFIG || {};
   const apiUrl = (cfg.apiUrl || '').trim();
 
+  if(!document.querySelector('link[data-ofaro-dynamic]')){
+    const link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = 'dynamic.css';
+    link.dataset.ofaroDynamic = '1';
+    document.head.appendChild(link);
+  }
+
   const fallback = {
     carta: [
       {id:'C001',categoria:'Ensaladas',producto:'Ensalada Mixta',descripcion:'Lechugas frescas, tomate, cebolla y acompañamiento clásico.',precioMedia:null,precioRacion:12,disponible:true,orden:1},
