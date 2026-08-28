@@ -22,6 +22,24 @@
 footer{background:#111;color:#fff;padding:42px 20px 110px}.footer-inner{max-width:1160px;margin:auto}.footer-title{font-family:Georgia,serif;font-size:clamp(2.5rem,9vw,5rem);line-height:.9}.muted{color:#888;line-height:1.7;margin-top:18px}
 .bottom{position:fixed;z-index:50;left:12px;right:12px;bottom:calc(10px + env(safe-area-inset-bottom));margin:auto;max-width:520px;display:grid;grid-template-columns:1fr 1.15fr 1fr;gap:7px;padding:9px;background:rgba(255,255,255,.95);border:1px solid rgba(0,0,0,.08);border-radius:24px;box-shadow:0 16px 50px rgba(0,0,0,.18);backdrop-filter:blur(18px)}.bottom a{min-height:48px;display:flex;align-items:center;justify-content:center;border-radius:17px;font-weight:800;font-size:.84rem;color:#666}.bottom .main{background:#111;color:#fff}
 @media(min-width:760px){.hero{min-height:760px;padding-left:40px;padding-right:40px}.hero-copy{margin-top:180px}.wrap{padding-left:40px;padding-right:40px}.cards{grid-auto-columns:300px}.day{grid-template-columns:1fr auto;align-items:end;padding:34px}.about{grid-template-columns:1.08fr .92fr;align-items:center;gap:42px}.gallery{grid-template-columns:1.5fr 1fr 1fr}.gallery img,.gallery img:first-child{height:340px;grid-column:auto}.bottom{display:none}footer{padding-bottom:50px}}
+
+.menu-note{margin:18px 0 0;color:#707070;font-size:.88rem;line-height:1.55}
+.menu-sections{display:grid;gap:18px;margin-top:28px}
+.menu-group{border:1px solid #e6e3de;border-radius:26px;padding:22px;background:#fff}
+.menu-group-head{display:flex;align-items:end;justify-content:space-between;gap:14px;padding-bottom:14px;border-bottom:1px solid #eee}
+.menu-group h3{font-family:Georgia,"Times New Roman",serif;font-size:2rem;line-height:1;margin:0;letter-spacing:-.035em}
+.menu-columns{font-size:.7rem;color:#888;text-transform:uppercase;letter-spacing:.11em;font-weight:800;white-space:nowrap}
+.menu-list{display:grid}
+.menu-item{display:grid;grid-template-columns:1fr auto;gap:18px;padding:16px 0;border-bottom:1px solid #eee;align-items:start}
+.menu-item:last-child{border-bottom:0}
+.menu-item h4{font-size:1rem;margin:0 0 5px;letter-spacing:-.01em}
+.menu-item p{font-size:.84rem;color:#777;line-height:1.45;margin:0;max-width:640px}
+.menu-prices{text-align:right;font-weight:900;white-space:nowrap;display:flex;gap:8px;align-items:baseline}
+.menu-prices span{display:inline-block;min-width:58px}
+.menu-prices small{display:block;color:#999;font-weight:700;font-size:.62rem;text-transform:uppercase;letter-spacing:.08em;margin-bottom:2px}
+.menu-footer-note{background:var(--soft);border-radius:20px;padding:16px 18px;margin-top:18px;color:#555;font-size:.84rem;line-height:1.55}
+@media(min-width:900px){.menu-sections{grid-template-columns:1fr 1fr;align-items:start}.menu-group.full{grid-column:1/-1}}
+
 </style>
 </head>
 <body>
@@ -30,13 +48,80 @@ footer{background:#111;color:#fff;padding:42px 20px 110px}.footer-inner{max-widt
  <div class="hero-copy"><div class="eyebrow">Mesón · Cocina gallega</div><h1 class="serif">Cocina gallega,<br><em>sin artificios.</em></h1><p>Producto, cocina de siempre y ese ambiente de mesón al que apetece volver.</p><div class="actions"><a class="btn" href="#carta">Ver la carta</a><a class="btn ghost" href="#menu-dia">Menú del día</a></div><div class="dots"><i></i><i></i><i></i><i></i></div></div>
 </header>
 <main class="sheet"><div class="wrap">
-<section class="section" id="carta"><div class="kicker">Nuestra carta</div><h2 class="serif">Para compartir.<br>O no.</h2>
-<div class="chips"><span class="chip active">Destacados</span><span class="chip">Raciones</span><span class="chip">Pescados</span><span class="chip">Carnes</span><span class="chip">Bocadillos</span><span class="chip">Vinos</span></div>
-<div class="cards">
-<article class="card"><img src="https://images.unsplash.com/photo-1541544741938-0af808871cc0?auto=format&fit=crop&w=900&q=85" alt="Plato destacado"><div class="card-copy"><h3>Pulpo á feira</h3><p>Uno de esos imprescindibles de mesa.</p><div class="price">22 €</div></div></article>
-<article class="card"><img src="https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=900&q=85" alt="Plato destacado"><div class="card-copy"><h3>Croquetas caseras</h3><p>Cremosas por dentro, crujientes por fuera.</p><div class="price">8 / 14 €</div></div></article>
-<article class="card"><img src="https://images.unsplash.com/photo-1559314809-0d155014e29e?auto=format&fit=crop&w=900&q=85" alt="Plato destacado"><div class="card-copy"><h3>Calamares</h3><p>Para pedir al centro y compartir.</p><div class="price">10 / 16 €</div></div></article>
-</div></section>
+<section class="section" id="carta">
+<div class="kicker">Nuestra carta</div>
+<h2 class="serif">Para compartir.<br>O no.</h2>
+<p class="menu-note">La carta se presenta aquí en un formato pensado para móvil. Los productos, descripciones y precios corresponden a la carta actual de Mesón O Faro.</p>
+
+<div class="chips">
+  <a class="chip active" href="#destacados">Destacados</a>
+  <a class="chip" href="#ensaladas">Ensaladas</a>
+  <a class="chip" href="#raciones">Raciones</a>
+  <a class="chip" href="#carnes">Carnes</a>
+  <a class="chip" href="#pescados">Pescados y mariscos</a>
+</div>
+
+<div class="cards" id="destacados">
+  <article class="card"><img src="https://images.unsplash.com/photo-1541544741938-0af808871cc0?auto=format&fit=crop&w=900&q=85" alt="Pulpo a feira"><div class="card-copy"><h3>Pulpo "A Feira"</h3><p>Uno de los clásicos de la casa.</p><div class="price">15 € / 23 €</div></div></article>
+  <article class="card"><img src="https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=900&q=85" alt="Croquetas"><div class="card-copy"><h3>Croquetas</h3><p>Jamón serrano o cecina.</p><div class="price">8 € / 14 €</div></div></article>
+  <article class="card"><img src="https://images.unsplash.com/photo-1559314809-0d155014e29e?auto=format&fit=crop&w=900&q=85" alt="Calamares"><div class="card-copy"><h3>Calamares</h3><p>Media ración o ración.</p><div class="price">12 € / 16 €</div></div></article>
+</div>
+
+<div class="menu-sections">
+  <article class="menu-group" id="ensaladas">
+    <div class="menu-group-head"><h3>Ensaladas</h3><div class="menu-columns">Precio</div></div>
+    <div class="menu-list">
+      <div class="menu-item"><div><h4>Ensalada Mixta</h4><p>Lechugas frescas, tomate, cebolla y acompañamiento clásico.</p></div><div class="menu-prices"><span>12,00 €</span></div></div>
+      <div class="menu-item"><div><h4>Ensalada de la Casa</h4><p>Lechuga, tomate, zanahoria, maíz, jamón, huevo, bonito y aceitunas.</p></div><div class="menu-prices"><span>14,00 €</span></div></div>
+      <div class="menu-item"><div><h4>Ensalada Tropical</h4><p>Aguacate, mango, aceitunas y tomate.</p></div><div class="menu-prices"><span>15,00 €</span></div></div>
+    </div>
+  </article>
+
+  <article class="menu-group" id="raciones">
+    <div class="menu-group-head"><h3>Raciones</h3><div class="menu-columns">½ ración · ración</div></div>
+    <div class="menu-list">
+      <div class="menu-item"><div><h4>Croquetas de Jamón Serrano</h4></div><div class="menu-prices"><span>8,00 €</span><span>14,00 €</span></div></div>
+      <div class="menu-item"><div><h4>Croquetas de Cecina</h4></div><div class="menu-prices"><span>8,00 €</span><span>14,00 €</span></div></div>
+      <div class="menu-item"><div><h4>Pimientos de Padrón</h4></div><div class="menu-prices"><span>10,00 €</span></div></div>
+      <div class="menu-item"><div><h4>Tortilla de Patatas</h4></div><div class="menu-prices"><span>18,00 €</span></div></div>
+      <div class="menu-item"><div><h4>Patatas Bravas</h4></div><div class="menu-prices"><span>8,00 €</span></div></div>
+      <div class="menu-item"><div><h4>Patatas Alioli</h4></div><div class="menu-prices"><span>8,00 €</span></div></div>
+    </div>
+  </article>
+
+  <article class="menu-group" id="carnes">
+    <div class="menu-group-head"><h3>Carnes</h3><div class="menu-columns">½ ración · ración</div></div>
+    <div class="menu-list">
+      <div class="menu-item"><div><h4>Raxo de la Casa</h4><p>Con pimientos del piquillo y gambas.</p></div><div class="menu-prices"><span>13,00 €</span><span>16,00 €</span></div></div>
+      <div class="menu-item"><div><h4>Raxo al Cabrales</h4></div><div class="menu-prices"><span>12,00 €</span><span>15,50 €</span></div></div>
+      <div class="menu-item"><div><h4>Raxo al Queso</h4></div><div class="menu-prices"><span>10,50 €</span><span>14,00 €</span></div></div>
+      <div class="menu-item"><div><h4>Raxo con Pimiento</h4></div><div class="menu-prices"><span>10,50 €</span><span>14,00 €</span></div></div>
+      <div class="menu-item"><div><h4>Pollo a la Pimienta</h4></div><div class="menu-prices"><span>10,50 €</span><span>14,00 €</span></div></div>
+      <div class="menu-item"><div><h4>Pollo al Cabrales</h4></div><div class="menu-prices"><span>10,50 €</span><span>15,50 €</span></div></div>
+      <div class="menu-item"><div><h4>Fingers de Pollo</h4></div><div class="menu-prices"><span>9,00 €</span><span>12,00 €</span></div></div>
+    </div>
+  </article>
+
+  <article class="menu-group" id="pescados">
+    <div class="menu-group-head"><h3>Pescados y mariscos</h3><div class="menu-columns">½ ración · ración</div></div>
+    <div class="menu-list">
+      <div class="menu-item"><div><h4>Pescaditos Fritos</h4></div><div class="menu-prices"><span>9,50 €</span><span>14,00 €</span></div></div>
+      <div class="menu-item"><div><h4>Pulpo "A Feira"</h4></div><div class="menu-prices"><span>15,00 €</span><span>23,00 €</span></div></div>
+      <div class="menu-item"><div><h4>Langostinos al Ajillo</h4></div><div class="menu-prices"><span>22,00 €</span></div></div>
+      <div class="menu-item"><div><h4>Gambas al Ajillo</h4></div><div class="menu-prices"><span>16,00 €</span></div></div>
+      <div class="menu-item"><div><h4>Volandeiras</h4></div><div class="menu-prices"><span>18,00 €</span></div></div>
+      <div class="menu-item"><div><h4>Marraxo a la Plancha</h4></div><div class="menu-prices"><span>16,00 €</span></div></div>
+      <div class="menu-item"><div><h4>Chipirones Fritos</h4></div><div class="menu-prices"><span>12,00 €</span><span>16,00 €</span></div></div>
+      <div class="menu-item"><div><h4>Chipirones a la Plancha</h4></div><div class="menu-prices"><span>12,00 €</span><span>16,00 €</span></div></div>
+      <div class="menu-item"><div><h4>Puntillas de Calamar</h4></div><div class="menu-prices"><span>10,00 €</span><span>14,00 €</span></div></div>
+      <div class="menu-item"><div><h4>Calamares</h4></div><div class="menu-prices"><span>12,00 €</span><span>16,00 €</span></div></div>
+      <div class="menu-item"><div><h4>Navajas a la Plancha</h4></div><div class="menu-prices"><span>16,00 €</span></div></div>
+    </div>
+  </article>
+</div>
+
+<div class="menu-footer-note"><strong>Información de la carta:</strong> IVA incluido · incremento en terraza de 0,20 € · domingo cerrado excepto víspera de festivo.</div>
+</section>
 <section class="section" id="menu-dia"><div class="day"><div><div class="kicker" style="color:#d8ba70">Hoy en O Faro</div><h3 class="serif">Menú del día</h3><p>Esta zona quedará conectada al panel de administración para cambiar primeros, segundos, postre y avisos sin tocar código.</p></div><div class="day-bottom"><div class="day-price">12 €</div><a class="btn" href="#carta">Ver menú</a></div></div></section>
 <section class="section"><div class="about"><img src="https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=1200&q=88" alt="Interior de restaurante"><div><div class="kicker">Mesón O Faro</div><h2 class="serif">Comer bien.<br>Estar a gusto.</h2><p>Una web que busca transmitir lo mismo que el local: cercanía, producto y una experiencia sencilla, sin adornos innecesarios.</p><div class="facts"><div class="fact"><strong>Galicia</strong><span>Cocina y producto</span></div><div class="fact"><strong>Ferrol</strong><span>Calle María, 51</span></div></div></div></div></section>
 <section class="section"><div class="kicker">Galería</div><h2 class="serif" style="margin-bottom:18px">De nuestra mesa.</h2><div class="gallery"><img src="https://images.unsplash.com/photo-1547592180-85f173990554?auto=format&fit=crop&w=1200&q=85" alt="Gastronomía"><img src="https://images.unsplash.com/photo-1559339352-11d035aa65de?auto=format&fit=crop&w=900&q=85" alt="Restaurante"><img src="https://images.unsplash.com/photo-1544148103-0773bf10d330?auto=format&fit=crop&w=900&q=85" alt="Mesa"></div></section>
