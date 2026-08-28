@@ -79,8 +79,7 @@ function createReservation_(body) {
 
 function notifyRestaurant_(ss, r) {
   const cfg = configMap_(ss);
-  const email = String(cfg['Email reservas'] || OFARO_RESERVATIONS_EMAIL).trim();
-  if (!email) return;
+  const email = String(cfg['Email reservas'] || OFARO_RESERVATIONS_EMAIL).trim() || OFARO_RESERVATIONS_EMAIL;
   const subject = 'Nueva solicitud de reserva · ' + r.fecha + ' · ' + r.hora;
   const text = [
     'Nueva solicitud de reserva en Mesón O Faro', '',
@@ -93,54 +92,85 @@ function notifyRestaurant_(ss, r) {
     'Observaciones: ' + (r.observaciones || '—'), '',
     'Gestiona el estado desde la pestaña Reservas de Google Sheets.'
   ].join('\n');
-  MailApp.sendEmail(email, subject, text);
+
+  GmailApp.sendEmail(email, subject, text, {
+    name: 'Mesón O Faro',
+    replyTo: OFARO_RESERVATIONS_EMAIL
+  });
 }
 
-// IMPORTANTE: esta función debe usarse con un trigger INSTALABLE "Al editar".
-// Un trigger simple onEdit no puede enviar emails con MailApp.
-function handleReservationEdit(e) {
+// Esta función mantiene el mismo nombre que el trigger que ya instalaste.
+function gestionarEstadoReserva(e) {
+  if (!e || !e.range) return;
+
+  const sh = e.range.getSheet();
+  if (sh.getName() !== 'Reservas' || e.range.getRow() < 2 || e.range.getColumn() !== 10) return;
+
+  const estado = String(e.value || '').trim().toLowerCase();
+  if (estado !== 'confirmada' && estado !== 'denegada') return;
+
+  const rowNumber = e.range.getRow();
+  const row = sh.getRange(rowNumber, 1, 1, 12).getValues()[0];
+  const correo = String(row[6] || '').trim();
+
+  if (!correo) {
+    sh.getRange(rowNumber, 11).setValue('ERROR · Falta correo del cliente');
+    return;
+  }
+
+  // Si ya consta un envío correcto, no duplica el correo.
+  if (/^Sí\s*·/i.test(String(row[10] || '').trim())) return;
+
   try {
-    if (!e || !e.range) return;
-    const sh = e.range.getSheet();
-    if (sh.getName() !== 'Reservas' || e.range.getRow() < 2 || e.range.getColumn() !== 10) return;
-    const estado = String(e.value || '').trim().toLowerCase();
-    if (estado !== 'confirmada' && estado !== 'denegada') return;
-
-    const row = sh.getRange(e.range.getRow(), 1, 1, 12).getValues()[0];
-    const correo = String(row[6] || '').trim();
-    if (!correo) return;
-
-    // Evita enviar dos veces si la columna K ya contiene confirmación de envío.
-    if (String(row[10] || '').trim()) return;
-
-    const ss = e.source;
+    const ss = e.source || SpreadsheetApp.openById(OFARO_SPREADSHEET_ID);
     const cfg = configMap_(ss);
     const data = {nombre:row[4], fecha:row[2], hora:row[3], personas:row[7]};
+
     const template = estado === 'confirmada'
       ? String(cfg['Mensaje confirmación reserva'] || 'Hola {{nombre}}, tu reserva ha sido confirmada.')
       : String(cfg['Mensaje denegación reserva'] || 'Hola {{nombre}}, no podemos confirmar tu reserva.');
-    const message = template_(template, data);
-    const subject = estado === 'confirmada' ? 'Reserva confirmada · Mesón O Faro' : 'Solicitud de reserva · Mesón O Faro';
-    MailApp.sendEmail(correo, subject, message);
 
-    sh.getRange(e.range.getRow(), 11).setValue('Sí · ' + Utilities.formatDate(new Date(), 'Europe/Madrid', 'dd/MM/yyyy HH:mm'));
-    sh.getRange(e.range.getRow(), 12).setValue(new Date());
+    const message = template_(template, data);
+    const subject = estado === 'confirmada'
+      ? 'Reserva confirmada · Mesón O Faro'
+      : 'Solicitud de reserva · Mesón O Faro';
+
+    GmailApp.sendEmail(correo, subject, message, {
+      name: 'Mesón O Faro',
+      replyTo: OFARO_RESERVATIONS_EMAIL
+    });
+
+    const stamp = Utilities.formatDate(new Date(), 'Europe/Madrid', 'dd/MM/yyyy HH:mm');
+    sh.getRange(rowNumber, 11).setValue('Sí · ' + stamp);
+    sh.getRange(rowNumber, 12).setValue(new Date());
   } catch (err) {
+    const msg = String(err && err.message ? err.message : err).slice(0, 180);
+    sh.getRange(rowNumber, 11).setValue('ERROR · ' + msg);
+    sh.getRange(rowNumber, 12).setValue(new Date());
     console.error(err);
+    throw err;
   }
 }
 
-// Ejecuta esta función UNA VEZ desde Apps Script para crear automáticamente
-// el trigger instalable que enviará confirmaciones/denegaciones.
 function instalarTriggerReservas() {
   const ss = SpreadsheetApp.openById(OFARO_SPREADSHEET_ID);
   ScriptApp.getProjectTriggers()
-    .filter(t => t.getHandlerFunction() === 'handleReservationEdit')
+    .filter(t => t.getHandlerFunction() === 'gestionarEstadoReserva')
     .forEach(t => ScriptApp.deleteTrigger(t));
-  ScriptApp.newTrigger('handleReservationEdit')
+  ScriptApp.newTrigger('gestionarEstadoReserva')
     .forSpreadsheet(ss)
     .onEdit()
     .create();
+}
+
+// Prueba manual: envía un correo a O Faro y permite verificar que GmailApp tiene permiso.
+function probarEmailReservas() {
+  GmailApp.sendEmail(
+    OFARO_RESERVATIONS_EMAIL,
+    'Prueba sistema de reservas · Mesón O Faro',
+    'Si recibes este mensaje, el envío de correos desde Apps Script funciona correctamente.',
+    {name:'Mesón O Faro', replyTo:OFARO_RESERVATIONS_EMAIL}
+  );
 }
 
 function configMap_(ss) {
