@@ -24,67 +24,11 @@
       <p class="menu-note">Carta organizada por categorías y optimizada para consultar rápidamente desde el móvil.</p>
     </div>
 
-    <div class="chips">
-      <a class="chip active" href="#ensaladas">Ensaladas</a>
-      <a class="chip" href="#raciones">Raciones</a>
-      <a class="chip" href="#carnes">Carnes</a>
-      <a class="chip" href="#pescados">Pescados y mariscos</a>
-    </div>
+    <div id="dataStatus" class="data-status" aria-live="polite">Cargando carta…</div>
+    <div id="categoryChips" class="chips" aria-label="Categorías"></div>
+    <div id="menuSections" class="menu-sections"></div>
 
-    <div class="menu-sections">
-      <article class="menu-group" id="ensaladas">
-        <div class="menu-group-head"><h3>Ensaladas</h3><div class="menu-columns">Precio</div></div>
-        <div class="menu-list">
-          <div class="menu-item"><div><h4>Ensalada Mixta</h4><p>Lechugas frescas, tomate, cebolla y acompañamiento clásico.</p></div><div class="menu-prices"><span>12,00 €</span></div></div>
-          <div class="menu-item"><div><h4>Ensalada de la Casa</h4><p>Lechuga, tomate, zanahoria, maíz, jamón, huevo, bonito y aceitunas.</p></div><div class="menu-prices"><span>14,00 €</span></div></div>
-          <div class="menu-item"><div><h4>Ensalada Tropical</h4><p>Aguacate, mango, aceitunas y tomate.</p></div><div class="menu-prices"><span>15,00 €</span></div></div>
-        </div>
-      </article>
-
-      <article class="menu-group" id="raciones">
-        <div class="menu-group-head"><h3>Raciones</h3><div class="menu-columns">½ ración · ración</div></div>
-        <div class="menu-list">
-          <div class="menu-item"><div><h4>Croquetas de Jamón Serrano</h4></div><div class="menu-prices"><span>8,00 €</span><span>14,00 €</span></div></div>
-          <div class="menu-item"><div><h4>Croquetas de Cecina</h4></div><div class="menu-prices"><span>8,00 €</span><span>14,00 €</span></div></div>
-          <div class="menu-item"><div><h4>Pimientos de Padrón</h4></div><div class="menu-prices"><span>10,00 €</span></div></div>
-          <div class="menu-item"><div><h4>Tortilla de Patatas</h4></div><div class="menu-prices"><span>18,00 €</span></div></div>
-          <div class="menu-item"><div><h4>Patatas Bravas</h4></div><div class="menu-prices"><span>8,00 €</span></div></div>
-          <div class="menu-item"><div><h4>Patatas Alioli</h4></div><div class="menu-prices"><span>8,00 €</span></div></div>
-        </div>
-      </article>
-
-      <article class="menu-group" id="carnes">
-        <div class="menu-group-head"><h3>Carnes</h3><div class="menu-columns">½ ración · ración</div></div>
-        <div class="menu-list">
-          <div class="menu-item"><div><h4>Raxo de la Casa</h4><p>Con pimientos del piquillo y gambas.</p></div><div class="menu-prices"><span>13,00 €</span><span>16,00 €</span></div></div>
-          <div class="menu-item"><div><h4>Raxo al Cabrales</h4></div><div class="menu-prices"><span>12,00 €</span><span>15,50 €</span></div></div>
-          <div class="menu-item"><div><h4>Raxo al Queso</h4></div><div class="menu-prices"><span>10,50 €</span><span>14,00 €</span></div></div>
-          <div class="menu-item"><div><h4>Raxo con Pimiento</h4></div><div class="menu-prices"><span>10,50 €</span><span>14,00 €</span></div></div>
-          <div class="menu-item"><div><h4>Pollo a la Pimienta</h4></div><div class="menu-prices"><span>10,50 €</span><span>14,00 €</span></div></div>
-          <div class="menu-item"><div><h4>Pollo al Cabrales</h4></div><div class="menu-prices"><span>10,50 €</span><span>15,50 €</span></div></div>
-          <div class="menu-item"><div><h4>Fingers de Pollo</h4></div><div class="menu-prices"><span>9,00 €</span><span>12,00 €</span></div></div>
-        </div>
-      </article>
-
-      <article class="menu-group" id="pescados">
-        <div class="menu-group-head"><h3>Pescados y mariscos</h3><div class="menu-columns">½ ración · ración</div></div>
-        <div class="menu-list">
-          <div class="menu-item"><div><h4>Pescaditos Fritos</h4></div><div class="menu-prices"><span>9,50 €</span><span>14,00 €</span></div></div>
-          <div class="menu-item"><div><h4>Pulpo “A Feira”</h4></div><div class="menu-prices"><span>23,00 €</span></div></div>
-          <div class="menu-item"><div><h4>Langostinos al Ajillo</h4></div><div class="menu-prices"><span>22,00 €</span></div></div>
-          <div class="menu-item"><div><h4>Gambas al Ajillo</h4></div><div class="menu-prices"><span>16,00 €</span></div></div>
-          <div class="menu-item"><div><h4>Volandeiras</h4></div><div class="menu-prices"><span>18,00 €</span></div></div>
-          <div class="menu-item"><div><h4>Marraxo a la Plancha</h4></div><div class="menu-prices"><span>16,00 €</span></div></div>
-          <div class="menu-item"><div><h4>Chipirones Fritos</h4></div><div class="menu-prices"><span>12,00 €</span><span>16,00 €</span></div></div>
-          <div class="menu-item"><div><h4>Chipirones a la Plancha</h4></div><div class="menu-prices"><span>12,00 €</span><span>16,00 €</span></div></div>
-          <div class="menu-item"><div><h4>Puntillas de Calamar</h4></div><div class="menu-prices"><span>10,00 €</span><span>14,00 €</span></div></div>
-          <div class="menu-item"><div><h4>Calamares</h4></div><div class="menu-prices"><span>12,00 €</span><span>16,00 €</span></div></div>
-          <div class="menu-item"><div><h4>Navajas a la Plancha</h4></div><div class="menu-prices"><span>16,00 €</span></div></div>
-        </div>
-      </article>
-    </div>
-
-    <div class="menu-footer-note"><strong>Información de la carta:</strong> IVA incluido · incremento en terraza de 0,20 €.</div>
+    <div id="menuFooterNote" class="menu-footer-note"><strong>Información de la carta:</strong> IVA incluido · incremento en terraza de 0,20 €.</div>
 
     <section class="section">
       <div class="kicker">Horario</div>
@@ -107,5 +51,64 @@
   <a href="menu-dia.html">Menú del día</a>
   <a href="index.html#visitanos">Llegar</a>
 </nav>
+
+<script src="data-config.js"></script>
+<script src="site-data.js"></script>
+<script>
+(function(){
+  const status = document.getElementById('dataStatus');
+  const chips = document.getElementById('categoryChips');
+  const sections = document.getElementById('menuSections');
+  const footer = document.getElementById('menuFooterNote');
+
+  const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const slug = value => String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'') || 'categoria';
+  const money = value => Number(value).toLocaleString('es-ES',{minimumFractionDigits:2,maximumFractionDigits:2}) + ' €';
+
+  function render(data){
+    const items = (data.carta || []).filter(x => x && x.producto && x.categoria && x.disponible !== false);
+    if(!items.length){
+      status.textContent = 'No hay platos disponibles en este momento.';
+      chips.innerHTML = '';
+      sections.innerHTML = '';
+      return;
+    }
+
+    const groups = [];
+    const map = new Map();
+    items.forEach(item => {
+      if(!map.has(item.categoria)){
+        const group = {name:item.categoria,items:[]};
+        map.set(item.categoria,group);
+        groups.push(group);
+      }
+      map.get(item.categoria).items.push(item);
+    });
+    groups.forEach(g => g.items.sort((a,b)=>(Number(a.orden)||0)-(Number(b.orden)||0)));
+
+    chips.innerHTML = groups.map((g,i)=>'<a class="chip '+(i===0?'active':'')+'" href="#'+slug(g.name)+'">'+esc(g.name)+'</a>').join('');
+    sections.innerHTML = groups.map(g => {
+      const hasHalf = g.items.some(x => x.precioMedia !== null && x.precioMedia !== '' && typeof x.precioMedia !== 'undefined');
+      const header = hasHalf ? '½ ración · ración' : 'Precio';
+      const rows = g.items.map(item => {
+        const prices = [];
+        if(item.precioMedia !== null && item.precioMedia !== '' && typeof item.precioMedia !== 'undefined') prices.push('<span>'+money(item.precioMedia)+'</span>');
+        if(item.precioRacion !== null && item.precioRacion !== '' && typeof item.precioRacion !== 'undefined') prices.push('<span>'+money(item.precioRacion)+'</span>');
+        return '<div class="menu-item"><div><h4>'+esc(item.producto)+'</h4>'+(item.descripcion?'<p>'+esc(item.descripcion)+'</p>':'')+'</div><div class="menu-prices">'+prices.join('')+'</div></div>';
+      }).join('');
+      return '<article class="menu-group" id="'+slug(g.name)+'"><div class="menu-group-head"><h3>'+esc(g.name)+'</h3><div class="menu-columns">'+header+'</div></div><div class="menu-list">'+rows+'</div></article>';
+    }).join('');
+
+    const inc = data.config && Number(data.config.incrementoTerraza);
+    footer.innerHTML = '<strong>Información de la carta:</strong> IVA incluido · incremento en terraza de '+(Number.isFinite(inc)?money(inc):'0,20 €')+'.';
+    status.textContent = OfaroData.apiUrl ? 'Carta actualizada desde el panel de gestión.' : '';
+    if(!status.textContent) status.hidden = true;
+  }
+
+  OfaroData.loadPublic().then(render).catch(()=>{
+    status.textContent = 'No se pudo cargar la carta.';
+  });
+})();
+</script>
 </body>
 </html>
