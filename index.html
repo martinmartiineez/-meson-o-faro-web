@@ -42,11 +42,32 @@ footer{background:#111;color:#fff;padding:42px 20px 110px}.footer-inner{max-widt
 
 
 
+
 .schedule-card{background:#fff;border:1px solid #e6e3de;border-radius:24px;overflow:hidden;box-shadow:0 10px 30px rgba(0,0,0,.05);margin-top:18px}
-.schedule-row{display:grid;grid-template-columns:104px minmax(0,1fr);align-items:center;gap:14px;padding:14px 16px;border-bottom:1px solid #eee}
-.schedule-row:last-child{border-bottom:0}.schedule-day{font-weight:850}.schedule-time{min-width:0;text-align:right;font-weight:750;font-size:.9rem;line-height:1.25;white-space:nowrap}.schedule-time .split{color:#8a8a8a;font-weight:650}.schedule-row.closed{background:#f5f3ef}.schedule-row.closed .schedule-time{color:#777}.schedule-row.thursday{background:#faf8f3}
-@media(max-width:390px){.schedule-row{grid-template-columns:92px minmax(0,1fr);gap:10px;padding:13px 14px}.schedule-time{font-size:.82rem;letter-spacing:-.02em}}
-@media(min-width:760px){.schedule-row{padding:15px 20px}.schedule-time{font-size:.96rem}}
+.schedule-head,.schedule-row{display:grid;grid-template-columns:94px minmax(0,1fr) minmax(0,1fr);align-items:center}
+.schedule-head{background:#111;color:#fff;padding:10px 14px;font-size:.68rem;font-weight:800;text-transform:uppercase;letter-spacing:.08em}
+.schedule-head div:not(:first-child){text-align:center}
+.schedule-row{padding:14px;border-bottom:1px solid #eee}
+.schedule-row:last-child{border-bottom:0}
+.schedule-day{font-weight:850}
+.schedule-time{text-align:center;font-weight:750;font-size:.84rem;line-height:1.15;white-space:nowrap}
+.schedule-row.thursday{background:#faf8f3}
+.schedule-row.closed{background:#f5f3ef}
+.schedule-closed{grid-column:2/4;text-align:center;color:#777;font-weight:800}
+@media(max-width:390px){
+  .schedule-head,.schedule-row{grid-template-columns:82px minmax(0,1fr) minmax(0,1fr)}
+  .schedule-head{padding:9px 10px;font-size:.62rem}
+  .schedule-row{padding:12px 10px}
+  .schedule-day{font-size:.9rem}
+  .schedule-time{font-size:.76rem;letter-spacing:-.02em}
+}
+@media(min-width:760px){
+  .schedule-head,.schedule-row{grid-template-columns:120px 1fr 1fr}
+  .schedule-head{padding:11px 18px;font-size:.72rem}
+  .schedule-row{padding:15px 18px}
+  .schedule-time{font-size:.94rem}
+}
+.schedule-time{font-size:.96rem}}
 
 </style>
 </head>
@@ -66,7 +87,23 @@ footer{background:#111;color:#fff;padding:42px 20px 110px}.footer-inner{max-widt
 <section class="section"><div class="about"><img src="https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=1200&q=88" alt="Interior de restaurante"><div><div class="kicker">Mesón O Faro</div><h2 class="serif">Comer bien.<br>Estar a gusto.</h2><p>Estamos en el centro de Ferrol, en la Calle María, 51. Queremos que la experiencia sea fácil desde antes de entrar: ver la carta, consultar el menú del día y saber cómo llegar en pocos segundos.</p><div class="facts"><div class="fact"><strong>Ferrol</strong><span>Calle María, 51</span></div><div class="fact"><strong>Horario</strong><span>Consulta el horario completo más abajo.</span></div></div></div></div></section>
 <section class="section"><div class="kicker">Galería</div><h2 class="serif" style="margin-bottom:18px">De nuestra mesa.</h2><p class="menu-note" style="margin-bottom:18px">Estas imágenes siguen siendo provisionales. Las sustituiremos por fotografías reales de O Faro.</p><div class="gallery"><img src="https://images.unsplash.com/photo-1547592180-85f173990554?auto=format&fit=crop&w=1200&q=85" alt="Gastronomía"><img src="https://images.unsplash.com/photo-1559339352-11d035aa65de?auto=format&fit=crop&w=900&q=85" alt="Restaurante"><img src="https://images.unsplash.com/photo-1544148103-0773bf10d330?auto=format&fit=crop&w=900&q=85" alt="Mesa"></div></section>
 <section class="section" id="visitanos"><div class="visit"><div><div class="kicker">Dónde estamos</div><h3 class="serif">Calle María, 51 · Ferrol</h3><div class="kicker" style="margin-top:18px">Horario</div><div class="schedule-card" aria-label="Horario semanal">
-<div class="schedule-row"><div class="schedule-day">Lunes</div><div class="schedule-time">11:00–16:00 <span class="split">·</span> 20:00–23:00</div></div>
+<div class="schedule-head"><div>Día</div><div>Mediodía</div><div>Noche</div></div>
+<div class="schedule-row"><div class="schedule-day">Lunes</div><div class="schedule-time">11:00–16:00</div><div class="schedule-time">20:00–23:00</div></div>
+<div class="schedule-row"><div class="schedule-day">Martes</div><div class="schedule-time">11:00–16:00</div><div class="schedule-time">20:00–23:00</div></div>
+<div class="schedule-row"><div class="schedule-day">Miércoles</div><div class="schedule-time">11:00–16:00</div><div class="schedule-time">20:00–23:00</div></div>
+<div class="schedule-row thursday"><div class="schedule-day">Jueves</div><div class="schedule-time">11:00–16:00</div><div class="schedule-time">—</div></div>
+<div class="schedule-row"><div class="schedule-day">Viernes</div><div class="schedule-time">11:00–16:00</div><div class="schedule-time">20:00–23:00</div></div>
+<div class="schedule-row"><div class="schedule-day">Sábado</div><div class="schedule-time">11:00–16:00</div><div class="schedule-time">20:00–23:00</div></div>
+<div class="schedule-row closed"><div class="schedule-day">Domingo</div><div class="schedule-closed">Cerrado</div></div>
+</div></div>
+<div class="schedule-row"><div class="schedule-day">Lunes</div><div class="schedule-time">11:00–16:00</div><div class="schedule-time">20:00–23:00</div></div>
+<div class="schedule-row"><div class="schedule-day">Martes</div><div class="schedule-time">11:00–16:00</div><div class="schedule-time">20:00–23:00</div></div>
+<div class="schedule-row"><div class="schedule-day">Miércoles</div><div class="schedule-time">11:00–16:00</div><div class="schedule-time">20:00–23:00</div></div>
+<div class="schedule-row thursday"><div class="schedule-day">Jueves</div><div class="schedule-time">11:00–16:00</div><div class="schedule-time">—</div></div>
+<div class="schedule-row"><div class="schedule-day">Viernes</div><div class="schedule-time">11:00–16:00</div><div class="schedule-time">20:00–23:00</div></div>
+<div class="schedule-row"><div class="schedule-day">Sábado</div><div class="schedule-time">11:00–16:00</div><div class="schedule-time">20:00–23:00</div></div>
+<div class="schedule-row closed"><div class="schedule-day">Domingo</div><div class="schedule-closed">Cerrado</div></div>
+</div></div>
 <div class="schedule-row"><div class="schedule-day">Martes</div><div class="schedule-time">11:00–16:00 <span class="split">·</span> 20:00–23:00</div></div>
 <div class="schedule-row"><div class="schedule-day">Miércoles</div><div class="schedule-time">11:00–16:00 <span class="split">·</span> 20:00–23:00</div></div>
 <div class="schedule-row thursday"><div class="schedule-day">Jueves</div><div class="schedule-time">11:00–16:00</div></div>
