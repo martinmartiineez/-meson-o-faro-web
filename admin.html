@@ -1,0 +1,240 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#111111">
+  <meta name="robots" content="noindex,nofollow">
+  <title>Administración · Mesón O Faro</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body style="background:#f5f3ef">
+<div class="admin-shell">
+  <header class="admin-top">
+    <div>
+      <div class="kicker">Mesón O Faro</div>
+      <h1 class="serif">Administración</h1>
+    </div>
+    <a class="btn dark" href="index.html">Ver web</a>
+  </header>
+
+  <main>
+    <section id="setupPanel" class="admin-panel" hidden>
+      <div class="kicker">Conexión pendiente</div>
+      <h2>El panel está preparado.</h2>
+      <p>Falta activar una única vez el puente con Google Sheets. Mientras tanto, la carta y el menú públicos siguen funcionando con la copia local.</p>
+      <a id="sheetSetupLink" class="btn dark" target="_blank" rel="noopener">Abrir hoja de gestión</a>
+    </section>
+
+    <section id="loginPanel" class="admin-panel" hidden>
+      <div class="kicker">Acceso privado</div>
+      <h2>Entrar al panel</h2>
+      <p>Introduce la clave que aparecerá en la pestaña <strong>Configuracion</strong> de Google Sheets como «Clave administrador».</p>
+      <form id="loginForm" class="admin-login">
+        <label>Clave de administrador<input id="adminToken" type="password" autocomplete="current-password" required></label>
+        <button class="btn dark" type="submit">Entrar</button>
+      </form>
+      <div id="loginMessage" class="admin-message" aria-live="polite"></div>
+    </section>
+
+    <section id="editorPanel" hidden>
+      <div class="admin-toolbar">
+        <div><strong>Panel conectado</strong><span>Los cambios se guardarán en Google Sheets.</span></div>
+        <div class="admin-toolbar-actions">
+          <a id="sheetLink" class="btn" target="_blank" rel="noopener">Google Sheets</a>
+          <button id="saveAll" class="btn dark" type="button">Guardar cambios</button>
+        </div>
+      </div>
+      <div id="saveMessage" class="admin-message" aria-live="polite"></div>
+
+      <section class="admin-panel">
+        <div class="admin-section-head">
+          <div><div class="kicker">Configuración</div><h2>Menú del día</h2></div>
+        </div>
+        <div class="admin-grid-two">
+          <label>Precio del menú (€)<input id="configMenuPrice" type="number" inputmode="decimal" step="0.01" min="0"></label>
+          <label>Incremento terraza (€)<input id="configTerrace" type="number" inputmode="decimal" step="0.01" min="0"></label>
+        </div>
+      </section>
+
+      <section class="admin-panel">
+        <div class="admin-section-head">
+          <div><div class="kicker">Menú del día</div><h2>Platos publicados</h2><p>Puedes añadir tantos primeros, segundos u otros apartados como quieras.</p></div>
+          <button id="addMenu" class="btn dark" type="button">+ Añadir plato</button>
+        </div>
+        <div id="menuEditor" class="admin-cards"></div>
+      </section>
+
+      <section class="admin-panel">
+        <div class="admin-section-head">
+          <div><div class="kicker">Carta</div><h2>Productos y precios</h2><p>Edita precios, oculta platos o añade nuevos productos y categorías.</p></div>
+          <button id="addCarta" class="btn dark" type="button">+ Añadir producto</button>
+        </div>
+        <div id="cartaEditor" class="admin-cards"></div>
+      </section>
+    </section>
+  </main>
+</div>
+
+<script src="data-config.js"></script>
+<script src="site-data.js"></script>
+<script>
+(function(){
+  const setupPanel = document.getElementById('setupPanel');
+  const loginPanel = document.getElementById('loginPanel');
+  const editorPanel = document.getElementById('editorPanel');
+  const sheetSetupLink = document.getElementById('sheetSetupLink');
+  const sheetLink = document.getElementById('sheetLink');
+  const cartaEditor = document.getElementById('cartaEditor');
+  const menuEditor = document.getElementById('menuEditor');
+  const loginMessage = document.getElementById('loginMessage');
+  const saveMessage = document.getElementById('saveMessage');
+  let token = sessionStorage.getItem('ofaroAdminToken') || '';
+  let current = null;
+
+  sheetSetupLink.href = OfaroData.sheetUrl || '#';
+  sheetLink.href = OfaroData.sheetUrl || '#';
+
+  if(!OfaroData.apiUrl){
+    setupPanel.hidden = false;
+    return;
+  }
+  loginPanel.hidden = false;
+
+  const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const num = value => {
+    if(value === '' || value === null || typeof value === 'undefined') return null;
+    const n = Number(String(value).replace(',','.'));
+    return Number.isFinite(n) ? n : null;
+  };
+  const nextId = (prefix, container) => prefix + Date.now().toString(36) + container.children.length.toString(36);
+
+  function cartaCard(item){
+    const div = document.createElement('article');
+    div.className = 'admin-card carta-row';
+    div.dataset.id = item.id || '';
+    div.innerHTML = '<div class="admin-card-head"><strong>'+esc(item.producto || 'Nuevo producto')+'</strong><button class="admin-delete" type="button">Eliminar</button></div>'+
+      '<div class="admin-grid-two"><label>Categoría<input data-field="categoria" value="'+esc(item.categoria || '')+'"></label><label>Nombre<input data-field="producto" value="'+esc(item.producto || '')+'"></label></div>'+
+      '<label>Descripción<textarea data-field="descripcion" rows="2">'+esc(item.descripcion || '')+'</textarea></label>'+
+      '<div class="admin-grid-three"><label>½ ración (€)<input data-field="precioMedia" type="number" step="0.01" min="0" value="'+(item.precioMedia ?? '')+'"></label><label>Ración / precio (€)<input data-field="precioRacion" type="number" step="0.01" min="0" value="'+(item.precioRacion ?? '')+'"></label><label>Orden<input data-field="orden" type="number" min="1" step="1" value="'+(item.orden || 1)+'"></label></div>'+
+      '<label class="admin-check"><input data-field="disponible" type="checkbox" '+(item.disponible===false?'':'checked')+'> Visible en la web</label>';
+    div.querySelector('.admin-delete').addEventListener('click',()=>div.remove());
+    div.querySelector('[data-field="producto"]').addEventListener('input',e=>{div.querySelector('.admin-card-head strong').textContent=e.target.value || 'Nuevo producto';});
+    return div;
+  }
+
+  function menuCard(item){
+    const div = document.createElement('article');
+    div.className = 'admin-card menu-row';
+    div.dataset.id = item.id || '';
+    div.innerHTML = '<div class="admin-card-head"><strong>'+esc(item.plato || 'Nuevo plato')+'</strong><button class="admin-delete" type="button">Eliminar</button></div>'+
+      '<div class="admin-grid-three"><label>Fecha opcional<input data-field="fecha" type="date" value="'+esc(toIsoDate(item.fecha || ''))+'"></label><label>Apartado<input data-field="tipo" value="'+esc(item.tipo || 'Primero')+'" placeholder="Primero, Segundo…"></label><label>Orden<input data-field="orden" type="number" min="1" step="1" value="'+(item.orden || 1)+'"></label></div>'+
+      '<label>Plato<input data-field="plato" value="'+esc(item.plato || '')+'"></label>'+
+      '<label>Descripción<textarea data-field="descripcion" rows="2">'+esc(item.descripcion || '')+'</textarea></label>'+
+      '<label class="admin-check"><input data-field="disponible" type="checkbox" '+(item.disponible===false?'':'checked')+'> Visible en la web</label>';
+    div.querySelector('.admin-delete').addEventListener('click',()=>div.remove());
+    div.querySelector('[data-field="plato"]').addEventListener('input',e=>{div.querySelector('.admin-card-head strong').textContent=e.target.value || 'Nuevo plato';});
+    return div;
+  }
+
+  function toIsoDate(value){
+    const s = String(value || '').trim();
+    if(/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+    const m = s.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+    return m ? m[3]+'-'+m[2]+'-'+m[1] : '';
+  }
+
+  function render(data){
+    current = data;
+    cartaEditor.innerHTML = '';
+    menuEditor.innerHTML = '';
+    (data.carta || []).forEach(item=>cartaEditor.appendChild(cartaCard(item)));
+    (data.menu || []).forEach(item=>menuEditor.appendChild(menuCard(item)));
+    document.getElementById('configMenuPrice').value = data.config && data.config.precioMenu != null ? data.config.precioMenu : 12;
+    document.getElementById('configTerrace').value = data.config && data.config.incrementoTerraza != null ? data.config.incrementoTerraza : 0.20;
+    loginPanel.hidden = true;
+    editorPanel.hidden = false;
+  }
+
+  async function login(inputToken){
+    loginMessage.textContent = 'Comprobando acceso…';
+    try{
+      const res = await OfaroData.apiPost('readAdmin',{},inputToken);
+      token = inputToken;
+      sessionStorage.setItem('ofaroAdminToken',token);
+      loginMessage.textContent = '';
+      render(res.data);
+    }catch(err){
+      sessionStorage.removeItem('ofaroAdminToken');
+      loginMessage.textContent = err.message;
+    }
+  }
+
+  document.getElementById('loginForm').addEventListener('submit',e=>{
+    e.preventDefault();
+    login(document.getElementById('adminToken').value.trim());
+  });
+
+  document.getElementById('addCarta').addEventListener('click',()=>{
+    cartaEditor.prepend(cartaCard({id:nextId('C',cartaEditor),categoria:'',producto:'',descripcion:'',precioMedia:null,precioRacion:null,disponible:true,orden:1}));
+    window.scrollTo({top:cartaEditor.getBoundingClientRect().top + window.scrollY - 90,behavior:'smooth'});
+  });
+
+  document.getElementById('addMenu').addEventListener('click',()=>{
+    menuEditor.prepend(menuCard({id:nextId('M',menuEditor),fecha:'',tipo:'Primero',plato:'',descripcion:'',disponible:true,orden:1}));
+    window.scrollTo({top:menuEditor.getBoundingClientRect().top + window.scrollY - 90,behavior:'smooth'});
+  });
+
+  function readCarta(){
+    return [...cartaEditor.querySelectorAll('.carta-row')].map((row,i)=>({
+      id:row.dataset.id || ('C'+String(i+1).padStart(3,'0')),
+      categoria:row.querySelector('[data-field="categoria"]').value.trim(),
+      producto:row.querySelector('[data-field="producto"]').value.trim(),
+      descripcion:row.querySelector('[data-field="descripcion"]').value.trim(),
+      precioMedia:num(row.querySelector('[data-field="precioMedia"]').value),
+      precioRacion:num(row.querySelector('[data-field="precioRacion"]').value),
+      disponible:row.querySelector('[data-field="disponible"]').checked,
+      orden:Number(row.querySelector('[data-field="orden"]').value)||i+1
+    })).filter(x=>x.producto && x.categoria);
+  }
+
+  function readMenu(){
+    return [...menuEditor.querySelectorAll('.menu-row')].map((row,i)=>({
+      id:row.dataset.id || ('M'+String(i+1).padStart(3,'0')),
+      fecha:row.querySelector('[data-field="fecha"]').value,
+      tipo:row.querySelector('[data-field="tipo"]').value.trim(),
+      plato:row.querySelector('[data-field="plato"]').value.trim(),
+      descripcion:row.querySelector('[data-field="descripcion"]').value.trim(),
+      disponible:row.querySelector('[data-field="disponible"]').checked,
+      orden:Number(row.querySelector('[data-field="orden"]').value)||i+1
+    })).filter(x=>x.plato && x.tipo);
+  }
+
+  document.getElementById('saveAll').addEventListener('click',async()=>{
+    saveMessage.textContent = 'Guardando…';
+    const button = document.getElementById('saveAll');
+    button.disabled = true;
+    try{
+      const payload = {
+        carta:readCarta(),
+        menu:readMenu(),
+        config:{
+          precioMenu:num(document.getElementById('configMenuPrice').value) ?? 12,
+          incrementoTerraza:num(document.getElementById('configTerrace').value) ?? 0.20
+        }
+      };
+      const res = await OfaroData.apiPost('saveAll',{data:payload},token);
+      render(res.data);
+      saveMessage.textContent = 'Cambios guardados. La web pública ya puede leer los nuevos datos.';
+    }catch(err){
+      saveMessage.textContent = err.message;
+    }finally{
+      button.disabled = false;
+    }
+  });
+
+  if(token) login(token);
+})();
+</script>
+</body>
+</html>
