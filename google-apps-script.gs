@@ -1,4 +1,5 @@
 const OFARO_SPREADSHEET_ID = '1I852Llhr3Nj2LuR1TESXwYZ54hlPNQj30GU8GU5uSaI';
+const OFARO_RESERVATIONS_EMAIL = 'ofaromeson@gmail.com';
 
 function doGet(e) {
   const action = (e && e.parameter && e.parameter.action) || 'public';
@@ -78,7 +79,7 @@ function createReservation_(body) {
 
 function notifyRestaurant_(ss, r) {
   const cfg = configMap_(ss);
-  const email = String(cfg['Email reservas'] || '').trim();
+  const email = String(cfg['Email reservas'] || OFARO_RESERVATIONS_EMAIL).trim();
   if (!email) return;
   const subject = 'Nueva solicitud de reserva · ' + r.fecha + ' · ' + r.hora;
   const text = [
@@ -95,7 +96,9 @@ function notifyRestaurant_(ss, r) {
   MailApp.sendEmail(email, subject, text);
 }
 
-function onEdit(e) {
+// IMPORTANTE: esta función debe usarse con un trigger INSTALABLE "Al editar".
+// Un trigger simple onEdit no puede enviar emails con MailApp.
+function handleReservationEdit(e) {
   try {
     if (!e || !e.range) return;
     const sh = e.range.getSheet();
@@ -106,6 +109,9 @@ function onEdit(e) {
     const row = sh.getRange(e.range.getRow(), 1, 1, 12).getValues()[0];
     const correo = String(row[6] || '').trim();
     if (!correo) return;
+
+    // Evita enviar dos veces si la columna K ya contiene confirmación de envío.
+    if (String(row[10] || '').trim()) return;
 
     const ss = e.source;
     const cfg = configMap_(ss);
@@ -122,6 +128,19 @@ function onEdit(e) {
   } catch (err) {
     console.error(err);
   }
+}
+
+// Ejecuta esta función UNA VEZ desde Apps Script para crear automáticamente
+// el trigger instalable que enviará confirmaciones/denegaciones.
+function instalarTriggerReservas() {
+  const ss = SpreadsheetApp.openById(OFARO_SPREADSHEET_ID);
+  ScriptApp.getProjectTriggers()
+    .filter(t => t.getHandlerFunction() === 'handleReservationEdit')
+    .forEach(t => ScriptApp.deleteTrigger(t));
+  ScriptApp.newTrigger('handleReservationEdit')
+    .forSpreadsheet(ss)
+    .onEdit()
+    .create();
 }
 
 function configMap_(ss) {
