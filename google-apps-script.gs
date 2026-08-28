@@ -99,7 +99,6 @@ function notifyRestaurant_(ss, r) {
   });
 }
 
-// Esta función mantiene el mismo nombre que el trigger que ya instalaste.
 function gestionarEstadoReserva(e) {
   if (!e || !e.range) return;
 
@@ -118,22 +117,26 @@ function gestionarEstadoReserva(e) {
     return;
   }
 
-  // Si ya consta un envío correcto, no duplica el correo.
   if (/^Sí\s*·/i.test(String(row[10] || '').trim())) return;
 
   try {
     const ss = e.source || SpreadsheetApp.openById(OFARO_SPREADSHEET_ID);
     const cfg = configMap_(ss);
-    const data = {nombre:row[4], fecha:row[2], hora:row[3], personas:row[7]};
+    const data = {
+      nombre: row[4],
+      fecha: formatReservationDate_(row[2]),
+      hora: formatReservationTime_(row[3]),
+      personas: row[7]
+    };
 
     const template = estado === 'confirmada'
-      ? String(cfg['Mensaje confirmación reserva'] || 'Hola {{nombre}}, tu reserva ha sido confirmada.')
-      : String(cfg['Mensaje denegación reserva'] || 'Hola {{nombre}}, no podemos confirmar tu reserva.');
+      ? String(cfg['Mensaje confirmación reserva'] || 'Hola {{nombre}}, tu reserva en Mesón O Faro para el {{fecha}} a las {{hora}}, para {{personas}} personas, ha sido CONFIRMADA. Te esperamos en Calle María, 53 · Ferrol. Si necesitas modificarla, ponte en contacto con nosotros. Gracias.')
+      : String(cfg['Mensaje denegación reserva'] || 'Hola {{nombre}}, no podemos confirmar tu solicitud de reserva en Mesón O Faro para el {{fecha}} a las {{hora}}. Si quieres, ponte en contacto con nosotros para buscar otra hora o fecha disponible. Gracias por pensar en O Faro.');
 
     const message = template_(template, data);
     const subject = estado === 'confirmada'
       ? 'Reserva confirmada · Mesón O Faro'
-      : 'Solicitud de reserva · Mesón O Faro';
+      : 'Reserva no disponible · Mesón O Faro';
 
     GmailApp.sendEmail(correo, subject, message, {
       name: 'Mesón O Faro',
@@ -163,7 +166,6 @@ function instalarTriggerReservas() {
     .create();
 }
 
-// Prueba manual: envía un correo a O Faro y permite verificar que GmailApp tiene permiso.
 function probarEmailReservas() {
   GmailApp.sendEmail(
     OFARO_RESERVATIONS_EMAIL,
@@ -171,6 +173,26 @@ function probarEmailReservas() {
     'Si recibes este mensaje, el envío de correos desde Apps Script funciona correctamente.',
     {name:'Mesón O Faro', replyTo:OFARO_RESERVATIONS_EMAIL}
   );
+}
+
+function formatReservationDate_(value) {
+  if (value instanceof Date && !isNaN(value.getTime())) {
+    return Utilities.formatDate(value, 'Europe/Madrid', 'dd/MM/yyyy');
+  }
+  const s = String(value == null ? '' : value).trim();
+  const m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (m) return m[3] + '/' + m[2] + '/' + m[1];
+  return s;
+}
+
+function formatReservationTime_(value) {
+  if (value instanceof Date && !isNaN(value.getTime())) {
+    return Utilities.formatDate(value, 'Europe/Madrid', 'HH:mm');
+  }
+  const s = String(value == null ? '' : value).trim();
+  const m = s.match(/^(\d{1,2}):(\d{2})/);
+  if (m) return String(m[1]).padStart(2, '0') + ':' + m[2];
+  return s;
 }
 
 function configMap_(ss) {
