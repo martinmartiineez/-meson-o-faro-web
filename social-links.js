@@ -131,7 +131,7 @@
       };
 
       script.onerror = () => finish(reject,new Error('No se pudo acceder a la pestaña Redes sociales'));
-      const params = new URLSearchParams({sheet:'Redes sociales',headers:'1',tq:'select *',tqx:'out:json;responseHandler:' + callback,_:String(Date.now())});
+      const params = new URLSearchParams({gid:'136543210',headers:'1',tq:'select *',tqx:'out:json;responseHandler:' + callback,_:String(Date.now())});
       script.src = 'https://docs.google.com/spreadsheets/d/' + encodeURIComponent(spreadsheetId) + '/gviz/tq?' + params.toString();
       document.head.appendChild(script);
       timer = setTimeout(()=>finish(reject,new Error('Tiempo de espera agotado')),8000);
