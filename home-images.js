@@ -12,26 +12,6 @@
     document.documentElement.classList.add('dynamic-images-ready');
   }
 
-  function preloadImages(images){
-    const urls = [...new Set((Array.isArray(images) ? images : []).filter(active).map(item => String(item.url).trim()).filter(Boolean))];
-    if(!urls.length) return Promise.resolve();
-
-    return Promise.allSettled(urls.map(url => new Promise(resolve => {
-      const img = new Image();
-      let finished = false;
-      const done = () => {
-        if(finished) return;
-        finished = true;
-        clearTimeout(timer);
-        resolve();
-      };
-      const timer = setTimeout(done, 4500);
-      img.onload = done;
-      img.onerror = done;
-      img.src = url;
-    })));
-  }
-
   function applyCardBackground(element, item){
     if(!element || !item || !item.url) return;
     const safeUrl = String(item.url).replace(/"/g,'%22');
@@ -75,6 +55,8 @@
     if(aboutImage){
       if(presentation){
         aboutImage.hidden = false;
+        aboutImage.decoding = 'async';
+        aboutImage.loading = 'lazy';
         aboutImage.src = presentation.url;
         aboutImage.alt = presentation.alt || presentation.nombre || 'Mesón O Faro';
       }else{
@@ -91,20 +73,25 @@
         img.src = item.url;
         img.alt = item.alt || item.nombre || 'Mesón O Faro';
         img.loading = 'lazy';
+        img.decoding = 'async';
+        try{ img.fetchPriority = 'low'; }catch(_){ }
         gallery.appendChild(img);
       });
     }
+
     return true;
   }
 
-  async function prepareAndApply(images){
+  function prepareAndApply(images){
     const clean = Array.isArray(images) ? images.filter(active) : [];
     if(!clean.length){
       const aboutImage = document.getElementById('aboutImage');
       if(aboutImage) aboutImage.hidden = true;
       return false;
     }
-    await preloadImages(clean);
+
+    /* Antes se esperaba a que TODAS las imágenes se descargasen antes de mostrarlas.
+       Ahora se insertan inmediatamente y el navegador las carga de forma progresiva. */
     const applied = applyImages(clean);
     if(applied) markReady();
     return applied;
@@ -169,7 +156,7 @@
     try{
       if(window.OfaroData && typeof window.OfaroData.loadPublic === 'function'){
         const data = await window.OfaroData.loadPublic();
-        if(await prepareAndApply(data && data.imagenes)) return;
+        if(prepareAndApply(data && data.imagenes)) return;
       }
     }catch(err){
       console.warn('O Faro: la API no devolvió imágenes dinámicas.', err);
@@ -177,7 +164,7 @@
 
     try{
       const images = await loadImagesFromSheet();
-      if(await prepareAndApply(images)) return;
+      if(prepareAndApply(images)) return;
     }catch(err){
       console.warn('O Faro: no se pudieron cargar las imágenes dinámicas.', err);
     }
