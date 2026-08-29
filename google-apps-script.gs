@@ -22,6 +22,7 @@ function getPublicData_() {
   const cartaRows = values_(ss.getSheetByName('Carta'));
   const menuRows = values_(ss.getSheetByName('Menu del dia'));
   const cfgRows = values_(ss.getSheetByName('Configuracion'));
+  const socialRows = values_(ss.getSheetByName('Redes sociales'));
 
   const carta = cartaRows.slice(1).filter(r => r[2]).map(r => ({
     id:r[0], categoria:r[1], producto:r[2], descripcion:r[3] || '',
@@ -34,6 +35,14 @@ function getPublicData_() {
     disponible:yes_(r[5]), orden:Number(r[6]) || 0
   }));
 
+  const redes = socialRows.slice(1).filter(r => r[1]).map(r => ({
+    id:r[0] || '',
+    red:r[1] || '',
+    url:r[2] || '',
+    activa:yes_(r[3]),
+    orden:Number(r[4]) || 0
+  })).filter(r => r.activa).sort(function(a,b){ return a.orden - b.orden; });
+
   const cfg = {};
   cfgRows.slice(1).forEach(r => { if (r[0]) cfg[String(r[0])] = r[1]; });
 
@@ -41,6 +50,7 @@ function getPublicData_() {
     ok:true,
     carta:carta,
     menu:menu,
+    redes:redes,
     config:{
       precioMenu:Number(cfg['Precio menú']) || 12,
       incrementoTerraza:Number(cfg['Incremento terraza']) || 0.20,
