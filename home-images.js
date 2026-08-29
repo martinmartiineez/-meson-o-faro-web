@@ -43,7 +43,12 @@
 
   function applyImages(images){
     const clean = Array.isArray(images) ? images.filter(active) : [];
-    if(!clean.length) return false;
+    const aboutImage = document.getElementById('aboutImage');
+
+    if(!clean.length){
+      if(aboutImage) aboutImage.hidden = true;
+      return false;
+    }
 
     const ordered = clean.slice().sort((a,b)=>(Number(a.orden)||0)-(Number(b.orden)||0));
 
@@ -66,10 +71,15 @@
       const name = norm(item.nombre);
       return norm(item.seccion) === 'presentacion' && !['portada principal','fondo menu del dia','fondo reserva'].includes(name);
     });
-    const aboutImage = document.getElementById('aboutImage');
-    if(presentation && aboutImage){
-      aboutImage.src = presentation.url;
-      aboutImage.alt = presentation.alt || presentation.nombre || 'Mesón O Faro';
+
+    if(aboutImage){
+      if(presentation){
+        aboutImage.hidden = false;
+        aboutImage.src = presentation.url;
+        aboutImage.alt = presentation.alt || presentation.nombre || 'Mesón O Faro';
+      }else{
+        aboutImage.hidden = true;
+      }
     }
 
     const galleryItems = ordered.filter(item => norm(item.seccion) === 'galeria');
@@ -89,7 +99,11 @@
 
   async function prepareAndApply(images){
     const clean = Array.isArray(images) ? images.filter(active) : [];
-    if(!clean.length) return false;
+    if(!clean.length){
+      const aboutImage = document.getElementById('aboutImage');
+      if(aboutImage) aboutImage.hidden = true;
+      return false;
+    }
     await preloadImages(clean);
     const applied = applyImages(clean);
     if(applied) markReady();
@@ -168,6 +182,8 @@
       console.warn('O Faro: no se pudieron cargar las imágenes dinámicas.', err);
     }
 
+    const aboutImage = document.getElementById('aboutImage');
+    if(aboutImage && (!aboutImage.src || aboutImage.src.startsWith('data:image/gif'))) aboutImage.hidden = true;
     markReady();
   }
 
