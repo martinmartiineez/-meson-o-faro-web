@@ -5,7 +5,9 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#111111">
   <title>Carta · Mesón O Faro</title>
-  <link rel="stylesheet" href="styles.css">
+  <link rel="preconnect" href="https://docs.google.com">
+  <link rel="preconnect" href="https://script.google.com">
+  <link rel="stylesheet" href="styles.css?v=20260829-1900">
 </head>
 <body style="background:#fff">
 <div class="page-shell">
@@ -52,8 +54,9 @@
   <a class="main" href="carta.html" aria-current="page">Carta</a>
 </nav>
 
-<script src="data-config.js"></script>
-<script src="site-data.js"></script>
+<script src="data-config.js?v=20260829-1900"></script>
+<script src="site-data.js?v=20260829-1900"></script>
+<script src="fast-data.js?v=20260829-1900"></script>
 <script>
 (function(){
   const status = document.getElementById('dataStatus');
@@ -101,11 +104,11 @@
 
     const inc = data.config && Number(data.config.incrementoTerraza);
     footer.innerHTML = '<strong>Información de la carta:</strong> IVA incluido · incremento en terraza de '+(Number.isFinite(inc)?money(inc):'0,20 €')+'.';
-    status.textContent = OfaroData.apiUrl ? 'Carta actualizada desde el panel de gestión.' : '';
-    if(!status.textContent) status.hidden = true;
+    status.hidden = true;
   }
 
-  OfaroData.loadPublic().then(render).catch(()=>{
+  OfaroFastData.loadCarta().then(render).catch(()=>{
+    status.hidden = false;
     status.textContent = 'No se pudo cargar la carta.';
   });
 })();
