@@ -169,13 +169,13 @@
   if(!document.querySelector('link[data-ofaro-ticker]')){
     const link = document.createElement('link');
     link.rel = 'stylesheet';
-    link.href = 'ticker.css?v=20260830-0006';
+    link.href = 'ticker.css?v=20260830-0010';
     link.dataset.ofaroTicker = '1';
     document.head.appendChild(link);
   }
   if(!document.querySelector('script[data-ofaro-ticker]')){
     const script = document.createElement('script');
-    script.src = 'ticker.js?v=20260830-0006';
+    script.src = 'ticker.js?v=20260830-0010';
     script.defer = true;
     script.dataset.ofaroTicker = '1';
     document.head.appendChild(script);
