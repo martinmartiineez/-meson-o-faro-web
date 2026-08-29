@@ -7,6 +7,15 @@
     return item && item.url && !['no','false','0',''].includes(norm(item.activa));
   }
 
+  function applyCardBackground(element, item){
+    if(!element || !item || !item.url) return;
+    const safeUrl = String(item.url).replace(/"/g,'%22');
+    element.style.backgroundImage = 'linear-gradient(180deg,rgba(0,0,0,.52),rgba(0,0,0,.74)),url("' + safeUrl + '")';
+    element.style.backgroundSize = 'cover';
+    element.style.backgroundPosition = 'center';
+    element.style.backgroundRepeat = 'no-repeat';
+  }
+
   function applyImages(images){
     const clean = Array.isArray(images) ? images.filter(active) : [];
     if(!clean.length) return false;
@@ -22,7 +31,16 @@
       hero.style.backgroundSize = 'cover';
     }
 
-    const presentation = ordered.find(item => norm(item.seccion) === 'presentacion' && norm(item.nombre) !== 'portada principal');
+    const menuBackground = ordered.find(item => norm(item.nombre) === 'fondo menu del dia');
+    applyCardBackground(document.getElementById('card-menu-dia'), menuBackground);
+
+    const reserveBackground = ordered.find(item => norm(item.nombre) === 'fondo reserva');
+    applyCardBackground(document.getElementById('card-reserva'), reserveBackground);
+
+    const presentation = ordered.find(item => {
+      const name = norm(item.nombre);
+      return norm(item.seccion) === 'presentacion' && !['portada principal','fondo menu del dia','fondo reserva'].includes(name);
+    });
     const aboutImage = document.getElementById('aboutImage');
     if(presentation && aboutImage){
       aboutImage.src = presentation.url;
