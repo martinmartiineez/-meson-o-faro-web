@@ -8,6 +8,9 @@
   <link rel="preconnect" href="https://docs.google.com">
   <link rel="preconnect" href="https://script.google.com">
   <link rel="stylesheet" href="styles.css?v=20260829-1900">
+  <style>
+    .menu-group[hidden]{display:none!important}
+  </style>
 </head>
 <body style="background:#fff">
 <div class="page-shell">
@@ -23,11 +26,11 @@
     <div class="page-hero">
       <div class="kicker">Mesón O Faro</div>
       <h1>Nuestra carta.</h1>
-      <p class="menu-note">Carta organizada por categorías y optimizada para consultar rápidamente desde el móvil.</p>
+      <p class="menu-note">Selecciona una categoría para consultar sus platos y precios.</p>
     </div>
 
     <div id="dataStatus" class="data-status" aria-live="polite">Cargando carta…</div>
-    <div id="categoryChips" class="chips" aria-label="Categorías"></div>
+    <div id="categoryChips" class="chips" role="tablist" aria-label="Categorías de la carta"></div>
     <div id="menuSections" class="menu-sections"></div>
 
     <div id="menuFooterNote" class="menu-footer-note"><strong>Información de la carta:</strong> IVA incluido · incremento en terraza de 0,20 €.</div>
@@ -68,6 +71,32 @@
   const slug = value => String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'') || 'categoria';
   const money = value => Number(value).toLocaleString('es-ES',{minimumFractionDigits:2,maximumFractionDigits:2}) + ' €';
 
+  function activateCategory(id, updateHash){
+    const tabs = Array.from(chips.querySelectorAll('.chip'));
+    const panels = Array.from(sections.querySelectorAll('.menu-group'));
+    const target = panels.find(panel => panel.id === id) || panels[0];
+    if(!target) return;
+
+    panels.forEach(panel => {
+      panel.hidden = panel !== target;
+      panel.setAttribute('aria-hidden', panel === target ? 'false' : 'true');
+    });
+
+    tabs.forEach(tab => {
+      const active = tab.dataset.target === target.id;
+      tab.classList.toggle('active', active);
+      tab.setAttribute('aria-selected', active ? 'true' : 'false');
+      tab.setAttribute('tabindex', active ? '0' : '-1');
+    });
+
+    const activeTab = tabs.find(tab => tab.dataset.target === target.id);
+    if(activeTab) activeTab.scrollIntoView({behavior:'smooth',block:'nearest',inline:'center'});
+
+    if(updateHash && history.replaceState){
+      history.replaceState(null,'','#'+target.id);
+    }
+  }
+
   function render(data){
     const items = (data.carta || []).filter(x => x && x.producto && x.categoria && x.disponible !== false);
     if(!items.length){
@@ -89,8 +118,13 @@
     });
     groups.forEach(g => g.items.sort((a,b)=>(Number(a.orden)||0)-(Number(b.orden)||0)));
 
-    chips.innerHTML = groups.map((g,i)=>'<a class="chip '+(i===0?'active':'')+'" href="#'+slug(g.name)+'">'+esc(g.name)+'</a>').join('');
-    sections.innerHTML = groups.map(g => {
+    chips.innerHTML = groups.map((g,i)=>{
+      const id = slug(g.name);
+      return '<a class="chip '+(i===0?'active':'')+'" href="#'+id+'" role="tab" aria-controls="'+id+'" aria-selected="'+(i===0?'true':'false')+'" tabindex="'+(i===0?'0':'-1')+'" data-target="'+id+'">'+esc(g.name)+'</a>';
+    }).join('');
+
+    sections.innerHTML = groups.map((g,i) => {
+      const id = slug(g.name);
       const hasHalf = g.items.some(x => x.precioMedia !== null && x.precioMedia !== '' && typeof x.precioMedia !== 'undefined');
       const header = hasHalf ? '½ ración · ración' : 'Precio';
       const rows = g.items.map(item => {
@@ -99,8 +133,29 @@
         if(item.precioRacion !== null && item.precioRacion !== '' && typeof item.precioRacion !== 'undefined') prices.push('<span>'+money(item.precioRacion)+'</span>');
         return '<div class="menu-item"><div><h4>'+esc(item.producto)+'</h4>'+(item.descripcion?'<p>'+esc(item.descripcion)+'</p>':'')+'</div><div class="menu-prices">'+prices.join('')+'</div></div>';
       }).join('');
-      return '<article class="menu-group" id="'+slug(g.name)+'"><div class="menu-group-head"><h3>'+esc(g.name)+'</h3><div class="menu-columns">'+header+'</div></div><div class="menu-list">'+rows+'</div></article>';
+      return '<article class="menu-group" id="'+id+'" role="tabpanel" aria-hidden="'+(i===0?'false':'true')+'" '+(i===0?'':'hidden')+'><div class="menu-group-head"><h3>'+esc(g.name)+'</h3><div class="menu-columns">'+header+'</div></div><div class="menu-list">'+rows+'</div></article>';
     }).join('');
+
+    chips.addEventListener('click', event => {
+      const tab = event.target.closest('.chip');
+      if(!tab) return;
+      event.preventDefault();
+      activateCategory(tab.dataset.target, true);
+    });
+
+    chips.addEventListener('keydown', event => {
+      if(event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+      const tabs = Array.from(chips.querySelectorAll('.chip'));
+      const current = tabs.indexOf(document.activeElement);
+      if(current < 0) return;
+      event.preventDefault();
+      const next = event.key === 'ArrowRight' ? (current + 1) % tabs.length : (current - 1 + tabs.length) % tabs.length;
+      tabs[next].focus();
+      activateCategory(tabs[next].dataset.target, true);
+    });
+
+    const initialHash = decodeURIComponent(location.hash.replace('#',''));
+    activateCategory(initialHash || slug(groups[0].name), false);
 
     const inc = data.config && Number(data.config.incrementoTerraza);
     footer.innerHTML = '<strong>Información de la carta:</strong> IVA incluido · incremento en terraza de '+(Number.isFinite(inc)?money(inc):'0,20 €')+'.';
