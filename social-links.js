@@ -140,6 +140,19 @@
 
   async function init(){
     render(fallback);
+
+    try{
+      if(window.OfaroData && typeof window.OfaroData.loadPublic === 'function'){
+        const data = await window.OfaroData.loadPublic();
+        if(data && Array.isArray(data.redes)){
+          render(data.redes);
+          return;
+        }
+      }
+    }catch(err){
+      console.warn('O Faro: la API no devolvió las redes sociales.',err);
+    }
+
     try{
       const items = await loadFromSheet();
       render(items.length ? items : fallback);
