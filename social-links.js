@@ -164,3 +164,20 @@
   if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded',init);
   else init();
 })();
+
+(function(){
+  if(!document.querySelector('link[data-ofaro-ticker]')){
+    const link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = 'ticker.css?v=20260829-2330';
+    link.dataset.ofaroTicker = '1';
+    document.head.appendChild(link);
+  }
+  if(!document.querySelector('script[data-ofaro-ticker]')){
+    const script = document.createElement('script');
+    script.src = 'ticker.js?v=20260829-2330';
+    script.defer = true;
+    script.dataset.ofaroTicker = '1';
+    document.head.appendChild(script);
+  }
+})();
