@@ -1,13 +1,23 @@
 <!doctype html>
-<html lang="es">
+<html lang="es" class="dynamic-images-loading">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#111111">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
   <meta name="description" content="Mesón O Faro en Ferrol. Consulta nuestra carta, menú del día, horarios y ubicación.">
   <title>Mesón O Faro</title>
-  <link rel="stylesheet" href="styles.css">
-  <link rel="stylesheet" href="reservas.css">
+  <style>
+    html.dynamic-images-loading .hero{background-image:linear-gradient(180deg,#181818,#111 45%,#080808)!important;background-color:#111!important}
+    html.dynamic-images-loading #aboutImage{visibility:hidden!important}
+    html.dynamic-images-loading #homeGallery{visibility:hidden!important}
+    html.dynamic-images-loading #card-menu-dia,
+    html.dynamic-images-loading #card-reserva{background-image:none!important}
+  </style>
+  <link rel="stylesheet" href="styles.css?v=20260829-1826">
+  <link rel="stylesheet" href="reservas.css?v=20260829-1826">
 </head>
 <body>
 <header class="hero" id="inicio">
@@ -24,34 +34,19 @@
     <h2>Reserva tu mesa.</h2>
     <p>Envíanos una solicitud con tus datos. La mesa quedará pendiente hasta que recibas por correo electrónico la confirmación o la denegación de Mesón O Faro.</p>
     <div class="reserve-trigger"><button id="reserveTrigger" class="btn" type="button" aria-expanded="false" aria-controls="reserveFormWrap">Reservar mesa</button></div>
-
     <div id="reserveFormWrap" class="reserve-form-wrap" hidden>
       <form id="reserveForm" class="reserve-form">
         <div class="reserve-grid">
-          <label>Nombre
-            <input name="nombre" type="text" maxlength="80" autocomplete="name" required>
-          </label>
-          <label>Teléfono
-            <input name="telefono" type="tel" maxlength="30" autocomplete="tel" required>
-          </label>
+          <label>Nombre<input name="nombre" type="text" maxlength="80" autocomplete="name" required></label>
+          <label>Teléfono<input name="telefono" type="tel" maxlength="30" autocomplete="tel" required></label>
         </div>
-        <label>Correo electrónico
-          <input name="correo" type="email" maxlength="120" autocomplete="email" required>
-        </label>
+        <label>Correo electrónico<input name="correo" type="email" maxlength="120" autocomplete="email" required></label>
         <div class="reserve-grid">
-          <label>Fecha
-            <input name="fecha" type="date" required>
-          </label>
-          <label>Hora
-            <input name="hora" type="time" required>
-          </label>
+          <label>Fecha<input name="fecha" type="date" required></label>
+          <label>Hora<input name="hora" type="time" required></label>
         </div>
-        <label>Número de personas
-          <input name="personas" type="number" min="1" max="30" inputmode="numeric" required>
-        </label>
-        <label>Observaciones
-          <textarea name="observaciones" maxlength="500" placeholder="Trona, alergias, celebración, accesibilidad…"></textarea>
-        </label>
+        <label>Número de personas<input name="personas" type="number" min="1" max="30" inputmode="numeric" required></label>
+        <label>Observaciones<textarea name="observaciones" maxlength="500" placeholder="Trona, alergias, celebración, accesibilidad…"></textarea></label>
         <p class="reserve-note">Enviar la solicitud no confirma automáticamente la mesa. Te enviaremos un correo cuando la reserva sea confirmada o denegada.</p>
         <button class="btn dark" type="submit">Solicitar reserva</button>
         <div id="reserveStatus" class="reserve-status" role="status" aria-live="polite"></div>
@@ -66,8 +61,8 @@
 </div></main>
 <footer><div class="footer-inner"><div class="footer-title">Mesón<br>O Faro.</div><div class="muted">Calle María, 53 · Ferrol<br>Prototipo web en desarrollo.</div></div></footer>
 <nav class="bottom" aria-label="Navegación móvil"><a href="menu-dia.html">Menú del día</a><a class="main" href="index.html" aria-current="page">Inicio</a><a href="carta.html">Carta</a></nav>
-<script src="data-config.js"></script>
-<script src="site-data.js"></script>
-<script src="home-images.js"></script>
-<script src="reservas.js"></script>
+<script src="data-config.js?v=20260829-1826"></script>
+<script src="site-data.js?v=20260829-1826"></script>
+<script src="home-images.js?v=20260829-1826"></script>
+<script src="reservas.js?v=20260829-1826"></script>
 </body></html>
