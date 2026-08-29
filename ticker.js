@@ -95,7 +95,7 @@
     requestAnimationFrame(()=>{
       const first = track.firstElementChild;
       const width = first ? first.scrollWidth : 0;
-      const seconds = Math.max(18,Math.min(55,width/42));
+      const seconds = Math.max(16,Math.min(48,width/50));
       track.style.setProperty('--ticker-duration',seconds.toFixed(1)+'s');
     });
   }
