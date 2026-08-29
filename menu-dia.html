@@ -5,7 +5,8 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#111111">
   <title>Menú del día · Mesón O Faro</title>
-  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="styles.css?v=20260829-1845">
+  <link rel="stylesheet" href="menu-prices.css?v=20260829-1845">
 </head>
 <body style="background:#fff">
 <div class="page-shell">
@@ -27,9 +28,15 @@
     <div id="menuDayStatus" class="data-status" aria-live="polite">Cargando menú…</div>
     <section id="dailyMenu" class="daily-menu" aria-live="polite"></section>
 
-    <div class="menu-price-box">
-      <span>Precio del menú</span>
-      <strong id="dailyMenuPrice">12 €</strong>
+    <div class="menu-price-grid" aria-label="Precios del menú del día">
+      <div class="menu-price-box">
+        <span>Menú completo</span>
+        <strong data-menu-price-full>13 €</strong>
+      </div>
+      <div class="menu-price-box half">
+        <span>Medio menú</span>
+        <strong data-menu-price-half>10 €</strong>
+      </div>
     </div>
 
     <section class="section">
@@ -59,13 +66,13 @@
   <a href="carta.html">Carta</a>
 </nav>
 
-<script src="data-config.js"></script>
-<script src="site-data.js"></script>
+<script src="data-config.js?v=20260829-1845"></script>
+<script src="site-data.js?v=20260829-1845"></script>
+<script src="menu-prices.js?v=20260829-1845"></script>
 <script>
 (function(){
   const status = document.getElementById('menuDayStatus');
   const root = document.getElementById('dailyMenu');
-  const price = document.getElementById('dailyMenuPrice');
   const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
   function render(data){
@@ -88,8 +95,6 @@
       root.innerHTML = groups.map(group => '<article class="daily-group"><div class="daily-group-title">'+esc(group.name)+'</div><div class="daily-list">'+group.items.map(item => '<div class="daily-item"><span class="daily-number">'+String((Number(item.orden)||1)).padStart(2,'0')+'</span><div><strong>'+esc(item.plato)+'</strong>'+(item.descripcion?'<p>'+esc(item.descripcion)+'</p>':'')+'</div></div>').join('')+'</div></article>').join('');
     }
 
-    const value = data.config && Number(data.config.precioMenu);
-    price.textContent = Number.isFinite(value) ? value.toLocaleString('es-ES',{minimumFractionDigits:0,maximumFractionDigits:2})+' €' : '12 €';
     status.textContent = OfaroData.apiUrl ? 'Menú actualizado desde el panel de gestión.' : '';
     if(!status.textContent) status.hidden = true;
   }
