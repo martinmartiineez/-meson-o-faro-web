@@ -5,6 +5,28 @@
     {id:'A003',texto:'REDES · Síguenos para ver nuestras novedades',url:'#redes',activo:true,orden:3}
   ];
 
+  function ensureShell(){
+    let root = document.getElementById('infoTicker');
+    if(root) return root;
+    const hero = document.querySelector('.hero');
+    if(!hero) return null;
+
+    root = document.createElement('section');
+    root.id = 'infoTicker';
+    root.className = 'info-ticker';
+    root.setAttribute('aria-label','Avisos y novedades');
+
+    const viewport = document.createElement('div');
+    viewport.className = 'ticker-viewport';
+    const track = document.createElement('div');
+    track.id = 'tickerTrack';
+    track.className = 'ticker-track';
+    viewport.appendChild(track);
+    root.appendChild(viewport);
+    hero.insertAdjacentElement('afterend',root);
+    return root;
+  }
+
   function safeHref(value){
     const raw = String(value || '').trim();
     if(!raw) return '';
@@ -25,7 +47,7 @@
     group.className = 'ticker-group';
     if(duplicate) group.setAttribute('aria-hidden','true');
 
-    items.forEach((item,index)=>{
+    items.forEach(item=>{
       const href = safeHref(item.url);
       const node = href ? document.createElement('a') : document.createElement('span');
       node.className = 'ticker-item';
@@ -60,7 +82,7 @@
   }
 
   function render(items){
-    const root = document.getElementById('infoTicker');
+    const root = ensureShell();
     const track = document.getElementById('tickerTrack');
     if(!root || !track) return;
 
@@ -79,6 +101,7 @@
   }
 
   async function init(){
+    ensureShell();
     render(fallback);
     try{
       if(window.OfaroData && typeof window.OfaroData.loadPublic === 'function'){
