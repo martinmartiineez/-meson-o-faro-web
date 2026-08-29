@@ -166,6 +166,43 @@ function instalarTriggerReservas() {
     .create();
 }
 
+// AppSheet actualiza Google Sheets mediante API, por lo que onEdit no se dispara.
+// Este proceso revisa cada minuto las reservas confirmadas/denegadas sin correo enviado
+// y reutiliza exactamente la misma lógica de envío de gestionarEstadoReserva().
+function procesarReservasAppSheet() {
+  const ss = SpreadsheetApp.openById(OFARO_SPREADSHEET_ID);
+  const sh = ss.getSheetByName('Reservas');
+  if (!sh || sh.getLastRow() < 2) return;
+
+  const rows = sh.getRange(2, 1, sh.getLastRow() - 1, 12).getValues();
+
+  rows.forEach(function(row, i) {
+    const estadoOriginal = String(row[9] || '').trim();
+    const estado = estadoOriginal.toLowerCase();
+    const correoCliente = String(row[10] || '').trim();
+
+    if ((estado === 'confirmada' || estado === 'denegada') && correoCliente === '') {
+      const rowNumber = i + 2;
+      gestionarEstadoReserva({
+        range: sh.getRange(rowNumber, 10),
+        value: estadoOriginal,
+        source: ss
+      });
+    }
+  });
+}
+
+function instalarTriggerAppSheet() {
+  ScriptApp.getProjectTriggers()
+    .filter(t => t.getHandlerFunction() === 'procesarReservasAppSheet')
+    .forEach(t => ScriptApp.deleteTrigger(t));
+
+  ScriptApp.newTrigger('procesarReservasAppSheet')
+    .timeBased()
+    .everyMinutes(1)
+    .create();
+}
+
 function probarEmailReservas() {
   GmailApp.sendEmail(
     OFARO_RESERVATIONS_EMAIL,
