@@ -7,6 +7,31 @@
     return item && item.url && !['no','false','0',''].includes(norm(item.activa));
   }
 
+  function markReady(){
+    document.documentElement.classList.remove('dynamic-images-loading');
+    document.documentElement.classList.add('dynamic-images-ready');
+  }
+
+  function preloadImages(images){
+    const urls = [...new Set((Array.isArray(images) ? images : []).filter(active).map(item => String(item.url).trim()).filter(Boolean))];
+    if(!urls.length) return Promise.resolve();
+
+    return Promise.allSettled(urls.map(url => new Promise(resolve => {
+      const img = new Image();
+      let finished = false;
+      const done = () => {
+        if(finished) return;
+        finished = true;
+        clearTimeout(timer);
+        resolve();
+      };
+      const timer = setTimeout(done, 4500);
+      img.onload = done;
+      img.onerror = done;
+      img.src = url;
+    })));
+  }
+
   function applyCardBackground(element, item){
     if(!element || !item || !item.url) return;
     const safeUrl = String(item.url).replace(/"/g,'%22');
@@ -60,6 +85,15 @@
       });
     }
     return true;
+  }
+
+  async function prepareAndApply(images){
+    const clean = Array.isArray(images) ? images.filter(active) : [];
+    if(!clean.length) return false;
+    await preloadImages(clean);
+    const applied = applyImages(clean);
+    if(applied) markReady();
+    return applied;
   }
 
   function loadImagesFromSheet(){
@@ -121,7 +155,7 @@
     try{
       if(window.OfaroData && typeof window.OfaroData.loadPublic === 'function'){
         const data = await window.OfaroData.loadPublic();
-        if(applyImages(data && data.imagenes)) return;
+        if(await prepareAndApply(data && data.imagenes)) return;
       }
     }catch(err){
       console.warn('O Faro: la API no devolvió imágenes dinámicas.', err);
@@ -129,10 +163,12 @@
 
     try{
       const images = await loadImagesFromSheet();
-      applyImages(images);
+      if(await prepareAndApply(images)) return;
     }catch(err){
       console.warn('O Faro: no se pudieron cargar las imágenes dinámicas.', err);
     }
+
+    markReady();
   }
 
   if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
