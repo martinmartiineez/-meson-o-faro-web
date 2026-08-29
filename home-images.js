@@ -13,7 +13,16 @@
 
     const ordered = clean.slice().sort((a,b)=>(Number(a.orden)||0)-(Number(b.orden)||0));
 
-    const presentation = ordered.find(item => norm(item.seccion) === 'presentacion');
+    const heroImage = ordered.find(item => norm(item.nombre) === 'portada principal');
+    const hero = document.querySelector('.hero');
+    if(heroImage && hero){
+      const safeUrl = String(heroImage.url).replace(/"/g,'%22');
+      hero.style.backgroundImage = 'linear-gradient(180deg,rgba(0,0,0,.16),rgba(0,0,0,.25) 45%,rgba(0,0,0,.78)),url("' + safeUrl + '")';
+      hero.style.backgroundPosition = 'center';
+      hero.style.backgroundSize = 'cover';
+    }
+
+    const presentation = ordered.find(item => norm(item.seccion) === 'presentacion' && norm(item.nombre) !== 'portada principal');
     const aboutImage = document.getElementById('aboutImage');
     if(presentation && aboutImage){
       aboutImage.src = presentation.url;
