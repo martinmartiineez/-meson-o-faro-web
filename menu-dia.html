@@ -5,8 +5,10 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#111111">
   <title>Menú del día · Mesón O Faro</title>
-  <link rel="stylesheet" href="styles.css?v=20260829-1845">
-  <link rel="stylesheet" href="menu-prices.css?v=20260829-1845">
+  <link rel="preconnect" href="https://docs.google.com">
+  <link rel="preconnect" href="https://script.google.com">
+  <link rel="stylesheet" href="styles.css?v=20260829-1900">
+  <link rel="stylesheet" href="menu-prices.css?v=20260829-1900">
 </head>
 <body style="background:#fff">
 <div class="page-shell">
@@ -66,14 +68,17 @@
   <a href="carta.html">Carta</a>
 </nav>
 
-<script src="data-config.js?v=20260829-1845"></script>
-<script src="site-data.js?v=20260829-1845"></script>
-<script src="menu-prices.js?v=20260829-1845"></script>
+<script src="data-config.js?v=20260829-1900"></script>
+<script src="site-data.js?v=20260829-1900"></script>
+<script src="fast-data.js?v=20260829-1900"></script>
 <script>
 (function(){
   const status = document.getElementById('menuDayStatus');
   const root = document.getElementById('dailyMenu');
+  const fullPrice = document.querySelector('[data-menu-price-full]');
+  const halfPrice = document.querySelector('[data-menu-price-half]');
   const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const formatPrice = value => Number(value).toLocaleString('es-ES',{minimumFractionDigits:0,maximumFractionDigits:2}) + ' €';
 
   function render(data){
     const items = (data.menu || []).filter(x => x && x.plato && x.tipo && x.disponible !== false);
@@ -95,11 +100,16 @@
       root.innerHTML = groups.map(group => '<article class="daily-group"><div class="daily-group-title">'+esc(group.name)+'</div><div class="daily-list">'+group.items.map(item => '<div class="daily-item"><span class="daily-number">'+String((Number(item.orden)||1)).padStart(2,'0')+'</span><div><strong>'+esc(item.plato)+'</strong>'+(item.descripcion?'<p>'+esc(item.descripcion)+'</p>':'')+'</div></div>').join('')+'</div></article>').join('');
     }
 
-    status.textContent = OfaroData.apiUrl ? 'Menú actualizado desde el panel de gestión.' : '';
-    if(!status.textContent) status.hidden = true;
+    const cfg = data.config || {};
+    const full = Number(cfg.precioMenu);
+    const half = Number(cfg.precioMedioMenu);
+    fullPrice.textContent = Number.isFinite(full) ? formatPrice(full) : '13 €';
+    halfPrice.textContent = Number.isFinite(half) ? formatPrice(half) : '10 €';
+    status.hidden = true;
   }
 
-  OfaroData.loadPublic().then(render).catch(()=>{
+  OfaroFastData.loadMenu().then(render).catch(()=>{
+    status.hidden = false;
     status.textContent = 'No se pudo cargar el menú del día.';
   });
 })();
