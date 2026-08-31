@@ -82,7 +82,8 @@
       precioMedia:numberOrNull(pick(r,'Precio media')),
       precioRacion:numberOrNull(pick(r,'Precio ración')),
       disponible:isAvailable(pick(r,'Disponible')),
-      orden:Number(pick(r,'Orden'))||0
+      orden:Number(pick(r,'Orden'))||0,
+      alergenos:String(pick(r,'Alérgenos') || '').trim()
     })).filter(x=>x.producto && x.categoria);
   }
 
@@ -136,7 +137,7 @@
   }
 
   async function loadCarta(force){
-    const key = 'ofaro-fast-carta-v1';
+    const key = 'ofaro-fast-carta-v2';
     if(!force){ const cached = readCache(key); if(cached) return cached; }
     try{
       const [cartaTable,configTable] = await Promise.all([gviz(sheets.carta),gviz(sheets.config)]);
@@ -171,6 +172,7 @@
   function clearCache(){
     try{
       localStorage.removeItem('ofaro-fast-carta-v1');
+      localStorage.removeItem('ofaro-fast-carta-v2');
       localStorage.removeItem('ofaro-fast-menu-v1');
     }catch(_){}
   }
