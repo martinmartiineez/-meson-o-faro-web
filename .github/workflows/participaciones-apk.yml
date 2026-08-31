@@ -34,6 +34,11 @@ jobs:
       - name: Ensure Android SDK 35
         run: yes | ${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager "platforms;android-35" "build-tools;35.0.0" >/dev/null
 
+      - name: Normalize Google Code Scanner imports
+        run: |
+          sed -i 's/com\.google\.android\.gms\.mlkit\.codescanner/com.google.mlkit.vision.codescanner/g' android-participaciones/app/src/main/java/com/ofaro/participaciones/MainActivity.java
+          sed -i '/import android\.content\.Context;/d' android-participaciones/app/src/main/java/com/ofaro/participaciones/MainActivity.java
+
       - name: Build debug APK
         working-directory: android-participaciones
         run: gradle :app:assembleDebug --stacktrace
@@ -45,12 +50,12 @@ jobs:
           path: android-participaciones/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
 
-      - name: Publish APK on development branch
+      - name: Publish APK and corrected source on development branch
         run: |
           mkdir -p build-artifacts
           cp android-participaciones/app/build/outputs/apk/debug/app-debug.apk build-artifacts/O-Faro-Participaciones-debug.apk
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add build-artifacts/O-Faro-Participaciones-debug.apk
+          git add android-participaciones/app/src/main/java/com/ofaro/participaciones/MainActivity.java build-artifacts/O-Faro-Participaciones-debug.apk
           git commit -m "build: APK participaciones" || exit 0
           git push origin HEAD:feature/participaciones-apk
