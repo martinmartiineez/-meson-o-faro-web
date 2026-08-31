@@ -10,6 +10,8 @@
     document.head.appendChild(link);
   }
 
+  const norm = value => String(value == null ? '' : value).normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().toLowerCase();
+
   function legalLinks(){
     return '<div class="site-legal" aria-label="Información legal"><a href="aviso-legal.html">Aviso legal</a><a href="privacidad.html">Privacidad</a><a href="cookies.html">Cookies y almacenamiento</a><a href="accesibilidad.html">Accesibilidad</a><a href="bases-promociones.html">Promociones</a></div>';
   }
@@ -70,6 +72,43 @@
     }
   }
 
+  async function renderAllergenTags(){
+    if(!window.OfaroFastData || typeof window.OfaroFastData.loadCarta !== 'function') return;
+    try{
+      const data = await window.OfaroFastData.loadCarta();
+      const byName = new Map();
+      (data.carta || []).forEach(item=>{
+        const name = norm(item && item.producto);
+        if(name) byName.set(name,item);
+      });
+      document.querySelectorAll('.menu-item').forEach(row=>{
+        if(row.querySelector('.menu-item-allergens')) return;
+        const title = row.querySelector('h4');
+        const item = title ? byName.get(norm(title.textContent)) : null;
+        const raw = item && item.alergenos ? String(item.alergenos) : '';
+        const tags = raw.split(/[,;|]/).map(x=>x.trim()).filter(Boolean);
+        if(!tags.length) return;
+        const textCol = row.firstElementChild;
+        if(!textCol) return;
+        const wrap = document.createElement('div');
+        wrap.className = 'menu-item-allergens';
+        const label = document.createElement('strong');
+        label.textContent = 'Alérgenos';
+        const group = document.createElement('div');
+        group.className = 'allergen-tags';
+        tags.forEach(value=>{
+          const tag = document.createElement('span');
+          tag.className = 'allergen-tag';
+          tag.textContent = value;
+          group.appendChild(tag);
+        });
+        wrap.appendChild(label);
+        wrap.appendChild(group);
+        textCol.appendChild(wrap);
+      });
+    }catch(_){}
+  }
+
   function setupCartaLegal(){
     const note = document.getElementById('menuFooterNote');
     if(!note) return;
@@ -87,6 +126,15 @@
     const observer = new MutationObserver(apply);
     observer.observe(note,{childList:true,subtree:true,characterData:true});
     setTimeout(()=>observer.disconnect(),8000);
+
+    const sections = document.getElementById('menuSections');
+    if(sections){
+      const menuObserver = new MutationObserver(()=>{
+        if(sections.querySelector('.menu-item')) renderAllergenTags();
+      });
+      menuObserver.observe(sections,{childList:true,subtree:true});
+      setTimeout(()=>{ renderAllergenTags(); menuObserver.disconnect(); },5000);
+    }
   }
 
   function setupMenuDayLegal(){
