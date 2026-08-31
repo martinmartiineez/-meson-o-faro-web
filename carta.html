@@ -6,7 +6,6 @@
   <meta name="theme-color" content="#111111">
   <title>Carta · Mesón O Faro</title>
   <link rel="preconnect" href="https://docs.google.com">
-  <link rel="preconnect" href="https://script.google.com">
   <link rel="stylesheet" href="styles.css?v=20260829-1900">
   <style>
     .menu-group[hidden]{display:none!important}
@@ -37,7 +36,7 @@
     <div id="categoryChips" class="chips" role="tablist" aria-label="Categorías de la carta"></div>
     <div id="menuSections" class="menu-sections"></div>
 
-    <div id="menuFooterNote" class="menu-footer-note"><strong>Información de la carta:</strong> IVA incluido · incremento en terraza de 0,20 €.</div>
+    <div id="menuFooterNote" class="menu-footer-note"><strong>Información de la carta:</strong> IVA incluido · servicio en terraza: suplemento de 0,20 € por producto.</div>
   </main>
 </div>
 
@@ -47,11 +46,10 @@
   <a class="main" href="carta.html" aria-current="page">Carta</a>
 </nav>
 
-<script src="data-config.js?v=20260901-perf1"></script>
+<script src="data-config.js?v=20260901-perf3"></script>
 <script src="site-data.js?v=20260901-perf1"></script>
-<script src="perf.js?v=20260901-perf1"></script>
 <script src="fast-data.js?v=20260829-1900"></script>
-<script src="fast-perf.js?v=20260901-perf2"></script>
+<script src="fast-perf.js?v=20260901-perf3"></script>
 <script>
 (function(){
   const status = document.getElementById('dataStatus');
@@ -88,11 +86,9 @@
     });
 
     const activeTab = tabs.find(tab => tab.dataset.target === target.id);
-    if(activeTab) activeTab.scrollIntoView({behavior:updateHash?'smooth':'auto',block:'nearest',inline:'center'});
+    if(activeTab && updateHash) activeTab.scrollIntoView({behavior:'smooth',block:'nearest',inline:'center'});
 
-    if(updateHash && history.replaceState){
-      history.replaceState(null,'','#'+target.id);
-    }
+    if(updateHash && history.replaceState) history.replaceState(null,'','#'+target.id);
   }
 
   function render(data){
@@ -107,9 +103,9 @@
 
     const currentPanel = sections.querySelector('.menu-group:not([hidden])');
     const currentId = currentPanel ? currentPanel.id : decodeURIComponent(location.hash.replace('#',''));
-
     const groups = [];
     const map = new Map();
+
     items.forEach(item => {
       if(!map.has(item.categoria)){
         const group = {name:item.categoria,items:[]};
@@ -139,11 +135,13 @@
     }).join('');
 
     const firstId = slug(groups[0].name);
-    const desired = currentId && sections.querySelector('#'+CSS.escape(currentId)) ? currentId : firstId;
+    let desired = currentId || firstId;
+    if(!Array.from(sections.querySelectorAll('.menu-group')).some(panel=>panel.id===desired)) desired = firstId;
     activateCategory(desired,false);
 
     const inc = data.config && Number(data.config.incrementoTerraza);
-    footer.innerHTML = '<strong>Información de la carta:</strong> IVA incluido · incremento en terraza de '+(Number.isFinite(inc)?money(inc):'0,20 €')+'.';
+    const terrace = Number.isFinite(inc) ? money(inc) : '0,20 €';
+    footer.innerHTML = '<strong>Información de la carta:</strong> IVA incluido · servicio en terraza: suplemento de '+terrace+' por producto.';
     status.hidden = true;
   }
 
