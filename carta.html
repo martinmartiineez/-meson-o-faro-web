@@ -10,6 +10,10 @@
   <link rel="stylesheet" href="styles.css?v=20260829-1900">
   <style>
     .menu-group[hidden]{display:none!important}
+    .allergen-tags{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px}
+    .allergen-tag{display:inline-flex;align-items:center;border:1px solid #ddd6c8;border-radius:999px;padding:4px 8px;background:#faf8f3;color:#635c50;font-size:.68rem;font-weight:800}
+    .menu-item-allergens{margin-top:7px}
+    .menu-item-allergens strong{display:block;font-size:.66rem;letter-spacing:.06em;text-transform:uppercase;color:#8a806f;margin-bottom:4px}
   </style>
 </head>
 <body style="background:#fff">
@@ -29,7 +33,7 @@
       <p class="menu-note">Selecciona una categoría para consultar sus platos y precios.</p>
     </div>
 
-    <div id="dataStatus" class="data-status" aria-live="polite">Cargando carta…</div>
+    <div id="dataStatus" class="data-status" aria-live="polite" hidden>Cargando carta…</div>
     <div id="categoryChips" class="chips" role="tablist" aria-label="Categorías de la carta"></div>
     <div id="menuSections" class="menu-sections"></div>
 
@@ -47,7 +51,7 @@
 <script src="site-data.js?v=20260901-perf1"></script>
 <script src="perf.js?v=20260901-perf1"></script>
 <script src="fast-data.js?v=20260829-1900"></script>
-<script src="fast-perf.js?v=20260901-perf1"></script>
+<script src="fast-perf.js?v=20260901-perf2"></script>
 <script>
 (function(){
   const status = document.getElementById('dataStatus');
@@ -58,6 +62,12 @@
   const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const slug = value => String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'') || 'categoria';
   const money = value => Number(value).toLocaleString('es-ES',{minimumFractionDigits:2,maximumFractionDigits:2}) + ' €';
+
+  function allergenHtml(raw){
+    const tags = String(raw || '').split(/[,;|]/).map(x=>x.trim()).filter(Boolean);
+    if(!tags.length) return '';
+    return '<div class="menu-item-allergens"><strong>Alérgenos</strong><div class="allergen-tags">'+tags.map(tag=>'<span class="allergen-tag">'+esc(tag)+'</span>').join('')+'</div></div>';
+  }
 
   function activateCategory(id, updateHash){
     const tabs = Array.from(chips.querySelectorAll('.chip'));
@@ -78,7 +88,7 @@
     });
 
     const activeTab = tabs.find(tab => tab.dataset.target === target.id);
-    if(activeTab) activeTab.scrollIntoView({behavior:'smooth',block:'nearest',inline:'center'});
+    if(activeTab) activeTab.scrollIntoView({behavior:updateHash?'smooth':'auto',block:'nearest',inline:'center'});
 
     if(updateHash && history.replaceState){
       history.replaceState(null,'','#'+target.id);
@@ -86,13 +96,17 @@
   }
 
   function render(data){
-    const items = (data.carta || []).filter(x => x && x.producto && x.categoria && x.disponible !== false);
+    const items = (data && data.carta || []).filter(x => x && x.producto && x.categoria && x.disponible !== false);
     if(!items.length){
+      status.hidden = false;
       status.textContent = 'No hay platos disponibles en este momento.';
       chips.innerHTML = '';
       sections.innerHTML = '';
       return;
     }
+
+    const currentPanel = sections.querySelector('.menu-group:not([hidden])');
+    const currentId = currentPanel ? currentPanel.id : decodeURIComponent(location.hash.replace('#',''));
 
     const groups = [];
     const map = new Map();
@@ -119,36 +133,41 @@
         const prices = [];
         if(item.precioMedia !== null && item.precioMedia !== '' && typeof item.precioMedia !== 'undefined') prices.push('<span>'+money(item.precioMedia)+'</span>');
         if(item.precioRacion !== null && item.precioRacion !== '' && typeof item.precioRacion !== 'undefined') prices.push('<span>'+money(item.precioRacion)+'</span>');
-        return '<div class="menu-item"><div><h4>'+esc(item.producto)+'</h4>'+(item.descripcion?'<p>'+esc(item.descripcion)+'</p>':'')+'</div><div class="menu-prices">'+prices.join('')+'</div></div>';
+        return '<div class="menu-item"><div><h4>'+esc(item.producto)+'</h4>'+(item.descripcion?'<p>'+esc(item.descripcion)+'</p>':'')+allergenHtml(item.alergenos)+'</div><div class="menu-prices">'+prices.join('')+'</div></div>';
       }).join('');
       return '<article class="menu-group" id="'+id+'" role="tabpanel" aria-hidden="'+(i===0?'false':'true')+'" '+(i===0?'':'hidden')+'><div class="menu-group-head"><h3>'+esc(g.name)+'</h3><div class="menu-columns">'+header+'</div></div><div class="menu-list">'+rows+'</div></article>';
     }).join('');
 
-    chips.addEventListener('click', event => {
-      const tab = event.target.closest('.chip');
-      if(!tab) return;
-      event.preventDefault();
-      activateCategory(tab.dataset.target, true);
-    });
-
-    chips.addEventListener('keydown', event => {
-      if(event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
-      const tabs = Array.from(chips.querySelectorAll('.chip'));
-      const current = tabs.indexOf(document.activeElement);
-      if(current < 0) return;
-      event.preventDefault();
-      const next = event.key === 'ArrowRight' ? (current + 1) % tabs.length : (current - 1 + tabs.length) % tabs.length;
-      tabs[next].focus();
-      activateCategory(tabs[next].dataset.target, true);
-    });
-
-    const initialHash = decodeURIComponent(location.hash.replace('#',''));
-    activateCategory(initialHash || slug(groups[0].name), false);
+    const firstId = slug(groups[0].name);
+    const desired = currentId && sections.querySelector('#'+CSS.escape(currentId)) ? currentId : firstId;
+    activateCategory(desired,false);
 
     const inc = data.config && Number(data.config.incrementoTerraza);
     footer.innerHTML = '<strong>Información de la carta:</strong> IVA incluido · incremento en terraza de '+(Number.isFinite(inc)?money(inc):'0,20 €')+'.';
     status.hidden = true;
   }
+
+  chips.addEventListener('click', event => {
+    const tab = event.target.closest('.chip');
+    if(!tab) return;
+    event.preventDefault();
+    activateCategory(tab.dataset.target,true);
+  });
+
+  chips.addEventListener('keydown', event => {
+    if(event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+    const tabs = Array.from(chips.querySelectorAll('.chip'));
+    const current = tabs.indexOf(document.activeElement);
+    if(current < 0) return;
+    event.preventDefault();
+    const next = event.key === 'ArrowRight' ? (current + 1) % tabs.length : (current - 1 + tabs.length) % tabs.length;
+    tabs[next].focus();
+    activateCategory(tabs[next].dataset.target,true);
+  });
+
+  window.addEventListener('ofaro:carta-updated',event=>{
+    if(event && event.detail) render(event.detail);
+  });
 
   OfaroFastData.loadCarta().then(render).catch(()=>{
     status.hidden = false;
