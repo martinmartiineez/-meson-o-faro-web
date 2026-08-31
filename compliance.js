@@ -5,12 +5,13 @@
   if(!document.querySelector('link[data-ofaro-legal]')){
     const link = document.createElement('link');
     link.rel = 'stylesheet';
-    link.href = 'legal.css?v=20260831-legal2';
+    link.href = 'legal.css?v=20260831-legal3';
     link.dataset.ofaroLegal = '1';
     document.head.appendChild(link);
   }
 
   const norm = value => String(value == null ? '' : value).normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().toLowerCase();
+  const text = value => String(value == null ? '' : value).trim();
 
   function legalLinks(){
     return '<div class="site-legal" aria-label="Información legal"><a href="aviso-legal.html">Aviso legal</a><a href="privacidad.html">Privacidad</a><a href="cookies.html">Cookies y almacenamiento</a><a href="accesibilidad.html">Accesibilidad</a><a href="bases-promociones.html">Promociones</a></div>';
@@ -28,8 +29,34 @@
     document.body.insertBefore(a,document.body.firstChild);
   }
 
+  function appendFooterLine(container,line){
+    const value = text(line);
+    if(!value) return;
+
+    const phone = value.match(/^(Tel[eé]fono\s*:\s*)(.+)$/i);
+    const email = value.match(/^(Correo(?: electrónico| de privacidad)?\s*:\s*)(.+)$/i);
+
+    if(phone){
+      container.appendChild(document.createTextNode(phone[1]));
+      const a = document.createElement('a');
+      const clean = phone[2].replace(/[^0-9+]/g,'');
+      a.href = 'tel:' + (clean.startsWith('+') ? clean : '+34' + clean);
+      a.textContent = phone[2];
+      container.appendChild(a);
+    }else if(email){
+      container.appendChild(document.createTextNode(email[1]));
+      const a = document.createElement('a');
+      a.href = 'mailto:' + email[2];
+      a.textContent = email[2];
+      container.appendChild(a);
+    }else{
+      container.appendChild(document.createTextNode(value));
+    }
+    container.appendChild(document.createElement('br'));
+  }
+
   function ensureFooter(){
-    if(document.body.classList.contains('legal-page')) return;
+    if(document.body.classList.contains('legal-page')) return null;
     let footer = document.querySelector('body > footer');
     if(!footer){
       footer = document.createElement('footer');
@@ -43,7 +70,33 @@
       inner.className = 'footer-inner';
       footer.appendChild(inner);
     }
-    inner.innerHTML = '<div class="footer-title">Mesón<br>O Faro.</div><div class="muted">Titular: Cleide Paula da Silva Justino · NIF X7560307T<br>Calle María, 53 · 15402 Ferrol<br><a href="tel:+34981465035">981 465 035</a> · <a href="mailto:ofaromeson@gmail.com">ofaromeson@gmail.com</a><br>Hojas de reclamaciones disponibles en el establecimiento.</div>' + legalLinks();
+
+    inner.innerHTML = '<div class="footer-title">Mesón<br>O Faro.</div><div class="muted" id="ofaroLegalFooterData">Mesón O Faro · NIF X7560307T<br>Calle María, 53 · 15402 Ferrol<br><a href="tel:+34981465035">981 465 035</a> · <a href="mailto:ofaromeson@gmail.com">ofaromeson@gmail.com</a><br>Hojas de reclamaciones disponibles en el establecimiento.</div>' + legalLinks();
+    return inner;
+  }
+
+  async function syncFooterFromSheet(){
+    const target = document.getElementById('ofaroLegalFooterData');
+    if(!target || !window.OfaroData || typeof window.OfaroData.loadPublic !== 'function') return;
+
+    try{
+      const data = await window.OfaroData.loadPublic();
+      const items = Array.isArray(data && data.legales) ? data.legales : (Array.isArray(data && data.textosLegales) ? data.textosLegales : []);
+      if(!items.length) return;
+
+      const identity = items.find(item => norm(item && item.pagina) === 'aviso-legal' && norm(item && item.titulo) === 'identificacion del titular');
+      const consumer = items.find(item => norm(item && item.pagina) === 'aviso-legal' && norm(item && item.titulo) === 'personas consumidoras');
+      if(!identity || !text(identity.texto)) return;
+
+      target.replaceChildren();
+      text(identity.texto).split(/\n+/).forEach(line=>appendFooterLine(target,line));
+      if(consumer && text(consumer.texto)) appendFooterLine(target,text(consumer.texto));
+
+      const last = target.lastElementChild;
+      if(last && last.tagName === 'BR') last.remove();
+    }catch(err){
+      console.warn('O Faro: no se pudo actualizar el pie legal desde Google Sheets.',err);
+    }
   }
 
   function setupReservationPrivacy(){
@@ -66,7 +119,7 @@
         const info = document.createElement('p');
         info.id = 'reservePrivacyInfo';
         info.className = 'privacy-first-layer';
-        info.innerHTML = '<strong>Protección de datos:</strong> Responsable: Cleide Paula da Silva Justino, titular de Mesón O Faro. Los datos se tratarán para gestionar tu solicitud de reserva. La base jurídica es la aplicación de medidas precontractuales solicitadas por ti. Consulta conservación, derechos y demás información en la <a href="privacidad.html">Política de privacidad</a>.';
+        info.innerHTML = '<strong>Protección de datos:</strong> Mesón O Faro tratará los datos para gestionar tu solicitud de reserva. La base jurídica es la aplicación de medidas precontractuales solicitadas por ti. Consulta conservación, responsable, derechos y demás información en la <a href="privacidad.html">Política de privacidad</a>.';
         submit.insertAdjacentElement('beforebegin',info);
       }
     }
@@ -150,6 +203,7 @@
   function init(){
     ensureSkipLink();
     ensureFooter();
+    syncFooterFromSheet();
     if(path === 'index.html' || path === '') setupReservationPrivacy();
     if(path === 'carta.html') setupCartaLegal();
     if(path === 'menu-dia.html') setupMenuDayLegal();
