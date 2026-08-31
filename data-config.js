@@ -12,7 +12,7 @@ window.OFARO_CONFIG = {
 (function(){
   if(document.querySelector('script[data-ofaro-compliance]')) return;
   const script = document.createElement('script');
-  script.src = 'compliance.js?v=20260831-legal2';
+  script.src = 'compliance.js?v=20260831-legal3';
   script.defer = true;
   script.dataset.ofaroCompliance = '1';
   document.head.appendChild(script);
