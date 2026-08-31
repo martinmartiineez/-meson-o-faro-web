@@ -10,10 +10,17 @@ window.OFARO_CONFIG = {
 };
 
 (function(){
-  if(document.querySelector('script[data-ofaro-compliance]')) return;
-  const script = document.createElement('script');
-  script.src = 'compliance.js?v=20260831-legal3';
-  script.defer = true;
-  script.dataset.ofaroCompliance = '1';
-  document.head.appendChild(script);
+  function loadCompliance(){
+    if(document.querySelector('script[data-ofaro-compliance]')) return;
+    const script = document.createElement('script');
+    script.src = 'compliance.js?v=20260831-legal3';
+    script.defer = true;
+    script.dataset.ofaroCompliance = '1';
+    document.head.appendChild(script);
+  }
+
+  /* La capa legal no es crítica para el primer pintado. Esperamos a que el HTML
+     principal y los scripts de datos estén listos para no competir con la carga. */
+  if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded',loadCompliance,{once:true});
+  else loadCompliance();
 })();
