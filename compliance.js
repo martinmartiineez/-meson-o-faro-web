@@ -43,7 +43,7 @@
       inner.className = 'footer-inner';
       footer.appendChild(inner);
     }
-    inner.innerHTML = '<div class="footer-title">Mesón<br>O Faro.</div><div class="muted">Calle María, 53 · 15402 Ferrol<br><a href="tel:+34981465035">981 465 035</a> · <a href="mailto:ofaromeson@gmail.com">ofaromeson@gmail.com</a><br>NIF X7560307T · Hojas de reclamaciones disponibles en el establecimiento.</div>' + legalLinks();
+    inner.innerHTML = '<div class="footer-title">Mesón<br>O Faro.</div><div class="muted">Titular: Cleide Paula da Silva Justino · NIF X7560307T<br>Calle María, 53 · 15402 Ferrol<br><a href="tel:+34981465035">981 465 035</a> · <a href="mailto:ofaromeson@gmail.com">ofaromeson@gmail.com</a><br>Hojas de reclamaciones disponibles en el establecimiento.</div>' + legalLinks();
   }
 
   function setupReservationPrivacy(){
@@ -66,7 +66,7 @@
         const info = document.createElement('p');
         info.id = 'reservePrivacyInfo';
         info.className = 'privacy-first-layer';
-        info.innerHTML = '<strong>Protección de datos:</strong> Mesón O Faro tratará los datos para gestionar tu solicitud de reserva. La base jurídica es la aplicación de medidas precontractuales solicitadas por ti. Consulta conservación, derechos y demás información en la <a href="privacidad.html">Política de privacidad</a>.';
+        info.innerHTML = '<strong>Protección de datos:</strong> Responsable: Cleide Paula da Silva Justino, titular de Mesón O Faro. Los datos se tratarán para gestionar tu solicitud de reserva. La base jurídica es la aplicación de medidas precontractuales solicitadas por ti. Consulta conservación, derechos y demás información en la <a href="privacidad.html">Política de privacidad</a>.';
         submit.insertAdjacentElement('beforebegin',info);
       }
     }
