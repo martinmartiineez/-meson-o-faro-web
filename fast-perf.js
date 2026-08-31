@@ -2,16 +2,116 @@
   const fast = window.OfaroFastData;
   if(!fast) return;
 
-  ['loadCarta','loadMenu'].forEach(name=>{
-    if(typeof fast[name] !== 'function') return;
-    const original = fast[name].bind(fast);
-    let inFlight = null;
+  const FRESH_MS = 30000;
+  const MAX_STALE_MS = 7 * 24 * 60 * 60 * 1000;
+  const CARTA_CACHE_KEY = 'ofaro-fast-carta-v2';
 
-    fast[name] = function(force){
-      if(force === true) return original(true);
-      if(inFlight) return inFlight;
-      inFlight = Promise.resolve(original(false)).finally(()=>{ inFlight = null; });
-      return inFlight;
+  const allergensById = {
+    C001:'Huevo, Pescado',
+    C002:'Huevo, Pescado',
+    C003:'',
+    C004:'Gluten, Leche, Huevo',
+    C005:'Gluten, Leche, Huevo',
+    C006:'',
+    C007:'Huevo',
+    C008:'',
+    C009:'Huevo',
+    C010:'Crustáceos',
+    C011:'Leche',
+    C012:'Leche',
+    C013:'',
+    C014:'Leche',
+    C015:'Leche',
+    C016:'Gluten, Huevo',
+    C017:'Pescado, Gluten',
+    C018:'Moluscos (cefalópodos)',
+    C019:'Crustáceos',
+    C020:'Crustáceos',
+    C021:'Moluscos',
+    C022:'Pescado',
+    C023:'Moluscos (cefalópodos), Gluten',
+    C024:'Moluscos (cefalópodos)',
+    C025:'Moluscos (cefalópodos), Gluten',
+    C026:'Moluscos (cefalópodos), Gluten',
+    C027:'Moluscos'
+  };
+
+  function decorate(data){
+    if(!data || !Array.isArray(data.carta)) return data;
+    return Object.assign({},data,{
+      carta:data.carta.map(item=>Object.assign({},item,{
+        alergenos:String(item && item.alergenos || allergensById[item && item.id] || '').trim()
+      }))
+    });
+  }
+
+  function readCartaCache(){
+    try{
+      const raw = localStorage.getItem(CARTA_CACHE_KEY);
+      if(!raw) return null;
+      const parsed = JSON.parse(raw);
+      if(!parsed || !parsed.time || !parsed.data) return null;
+      const age = Date.now() - Number(parsed.time || 0);
+      if(age > MAX_STALE_MS) return null;
+      return {time:Number(parsed.time),age,data:decorate(parsed.data)};
+    }catch(_){ return null; }
+  }
+
+  function bundledCarta(){
+    const fallback = window.OfaroData && window.OfaroData.fallback;
+    if(!fallback || !Array.isArray(fallback.carta) || !fallback.carta.length) return null;
+    return decorate({
+      carta:fallback.carta,
+      config:Object.assign({incrementoTerraza:0.20},fallback.config || {}),
+      source:'bundled-instant'
+    });
+  }
+
+  if(typeof fast.loadCarta === 'function'){
+    const originalCarta = fast.loadCarta.bind(fast);
+    let cartaInFlight = null;
+
+    function refreshCarta(){
+      if(cartaInFlight) return cartaInFlight;
+      cartaInFlight = Promise.resolve(originalCarta(true))
+        .then(decorate)
+        .then(data=>{
+          try{ window.dispatchEvent(new CustomEvent('ofaro:carta-updated',{detail:data})); }catch(_){}
+          return data;
+        })
+        .finally(()=>{ cartaInFlight = null; });
+      return cartaInFlight;
+    }
+
+    fast.loadCarta = function(force){
+      if(force === true) return refreshCarta();
+
+      const cached = readCartaCache();
+      if(cached){
+        if(cached.age > FRESH_MS){
+          setTimeout(()=>{ refreshCarta().catch(()=>{}); },0);
+        }
+        return Promise.resolve(cached.data);
+      }
+
+      const bundled = bundledCarta();
+      if(bundled){
+        setTimeout(()=>{ refreshCarta().catch(()=>{}); },0);
+        return Promise.resolve(bundled);
+      }
+
+      return refreshCarta();
     };
-  });
+  }
+
+  if(typeof fast.loadMenu === 'function'){
+    const originalMenu = fast.loadMenu.bind(fast);
+    let menuInFlight = null;
+    fast.loadMenu = function(force){
+      if(force === true) return originalMenu(true);
+      if(menuInFlight) return menuInFlight;
+      menuInFlight = Promise.resolve(originalMenu(false)).finally(()=>{ menuInFlight = null; });
+      return menuInFlight;
+    };
+  }
 })();
