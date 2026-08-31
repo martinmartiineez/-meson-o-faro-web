@@ -1,4 +1,8 @@
 (function(){
+  const CACHE_KEY = 'ofaro-popup-fast-cache-v1';
+  const CACHE_MAX_AGE = 30000;
+  let closedThisLoad = false;
+
   function text(value){ return String(value == null ? '' : value).trim(); }
   function active(value){
     if(typeof value === 'boolean') return value;
@@ -16,15 +20,6 @@
     const raw = text(value);
     return /^https?:\/\//i.test(raw) ? raw : '';
   }
-  function hash(value){
-    let h = 2166136261;
-    const s = String(value || '');
-    for(let i=0;i<s.length;i++){
-      h ^= s.charCodeAt(i);
-      h = Math.imul(h,16777619);
-    }
-    return (h >>> 0).toString(36);
-  }
   function normalize(items){
     return (Array.isArray(items) ? items : [])
       .map(item=>({
@@ -41,12 +36,30 @@
       .filter(item=>item.activa && (item.titulo || item.texto || item.imagen))
       .sort((a,b)=>a.orden-b.orden);
   }
-  function dismissed(item){
-    const sig = hash([item.id,item.etiqueta,item.titulo,item.texto,item.imagen,item.boton,item.url].join('|'));
-    const key = 'ofaro-popup-' + (item.id || 'anon') + '-' + sig;
-    try{ return {key:key,value:sessionStorage.getItem(key)==='1'}; }
-    catch(_){ return {key:key,value:false}; }
+
+  function readFastCache(){
+    try{
+      const raw = sessionStorage.getItem(CACHE_KEY);
+      if(!raw) return [];
+      const parsed = JSON.parse(raw);
+      if(!parsed || !Array.isArray(parsed.items) || Date.now() - Number(parsed.time || 0) > CACHE_MAX_AGE){
+        sessionStorage.removeItem(CACHE_KEY);
+        return [];
+      }
+      return normalize(parsed.items);
+    }catch(_){ return []; }
   }
+
+  function writeFastCache(items){
+    try{
+      sessionStorage.setItem(CACHE_KEY,JSON.stringify({time:Date.now(),items:items || []}));
+    }catch(_){}
+  }
+
+  function clearFastCache(){
+    try{ sessionStorage.removeItem(CACHE_KEY); }catch(_){}
+  }
+
   function createShell(){
     let root = document.getElementById('ofaroPopup');
     if(root) return root;
@@ -63,9 +76,15 @@
     document.body.appendChild(root);
     return root;
   }
+
+  function hide(){
+    const root = document.getElementById('ofaroPopup');
+    if(root) root.hidden = true;
+    document.body.classList.remove('ofaro-popup-open');
+  }
+
   function show(item){
-    const state = dismissed(item);
-    if(state.value) return;
+    if(closedThisLoad || !item) return;
 
     const root = createShell();
     const card = root.querySelector('.ofaro-popup-card');
@@ -108,28 +127,38 @@
     }
 
     function dismiss(){
-      root.hidden = true;
-      document.body.classList.remove('ofaro-popup-open');
-      try{ sessionStorage.setItem(state.key,'1'); }catch(_){}
+      closedThisLoad = true;
+      hide();
       document.removeEventListener('keydown',onKey);
     }
     function onKey(e){ if(e.key === 'Escape') dismiss(); }
 
     close.onclick = dismiss;
     root.onclick = e=>{ if(e.target === root) dismiss(); };
-    action.onclick = ()=>{ try{ sessionStorage.setItem(state.key,'1'); }catch(_){} };
+    action.onclick = ()=>{};
     document.addEventListener('keydown',onKey);
 
     root.hidden = false;
     document.body.classList.add('ofaro-popup-open');
-    setTimeout(()=>close.focus({preventScroll:true}),30);
+    setTimeout(()=>close.focus({preventScroll:true}),20);
   }
+
   async function init(){
+    const cached = readFastCache();
+    if(cached.length) show(cached[0]);
+
     if(!window.OfaroData || typeof window.OfaroData.loadPublic !== 'function') return;
+
     try{
       const data = await window.OfaroData.loadPublic();
       const items = normalize(data && (data.popups || data.popup));
-      if(items.length) setTimeout(()=>show(items[0]),450);
+      if(items.length){
+        writeFastCache(items);
+        if(!closedThisLoad) show(items[0]);
+      }else{
+        clearFastCache();
+        if(!closedThisLoad) hide();
+      }
     }catch(err){
       console.warn('O Faro: no se pudo cargar la ventana emergente.',err);
     }
