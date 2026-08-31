@@ -8,3 +8,12 @@ window.OFARO_CONFIG = {
     config: "Configuracion"
   }
 };
+
+(function(){
+  if(document.querySelector('script[data-ofaro-compliance]')) return;
+  const script = document.createElement('script');
+  script.src = 'compliance.js?v=20260831-legal2';
+  script.defer = true;
+  script.dataset.ofaroCompliance = '1';
+  document.head.appendChild(script);
+})();
