@@ -1,0 +1,56 @@
+name: Build O Faro Participaciones APK
+
+on:
+  push:
+    branches: ["feature/participaciones-apk"]
+    paths:
+      - "android-participaciones/**"
+      - ".github/workflows/participaciones-apk.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: feature/participaciones-apk
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Gradle 8.9
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      - name: Ensure Android SDK 35
+        run: yes | ${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager "platforms;android-35" "build-tools;35.0.0" >/dev/null
+
+      - name: Build debug APK
+        working-directory: android-participaciones
+        run: gradle :app:assembleDebug --stacktrace
+
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: O-Faro-Participaciones-debug-apk
+          path: android-participaciones/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+
+      - name: Publish APK on development branch
+        run: |
+          mkdir -p build-artifacts
+          cp android-participaciones/app/build/outputs/apk/debug/app-debug.apk build-artifacts/O-Faro-Participaciones-debug.apk
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add build-artifacts/O-Faro-Participaciones-debug.apk
+          git commit -m "build: APK participaciones" || exit 0
+          git push origin HEAD:feature/participaciones-apk
