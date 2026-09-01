@@ -49,6 +49,7 @@
 <script src="data-config.js?v=20260901-perf3"></script>
 <script src="site-data.js?v=20260901-perf1"></script>
 <script src="fast-data.js?v=20260901-carta5"></script>
+<script src="allergens-fallback.js?v=20260901-1"></script>
 <script src="fast-perf.js?v=20260901-carta5"></script>
 <script>
 (function(){
@@ -166,7 +167,7 @@
     if(event && event.detail) render(event.detail);
   });
 
-  OfaroFastData.loadCarta().then(render).catch(()=>{
+  OfaroFastData.loadCarta(true).then(render).catch(()=>{
     status.hidden = false;
     status.textContent = 'No se pudo cargar la carta.';
   });
