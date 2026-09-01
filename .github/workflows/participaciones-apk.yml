@@ -1,4 +1,4 @@
-name: Build O Faro Participaciones APK
+name: Build O Faro Gestion APK
 
 on:
   push:
@@ -34,12 +34,6 @@ jobs:
       - name: Ensure Android SDK 35
         run: yes | ${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager "platforms;android-35" "build-tools;35.0.0" >/dev/null
 
-      - name: Normalize scanner source
-        run: |
-          sed -i 's/com\.google\.android\.gms\.mlkit\.codescanner/com.google.mlkit.vision.codescanner/g' android-participaciones/app/src/main/java/com/ofaro/participaciones/MainActivity.java
-          sed -i '/import android\.content\.Context;/d' android-participaciones/app/src/main/java/com/ofaro/participaciones/MainActivity.java
-          sed -i 's/IntentIntegrator\.QR_CODE_TYPES/java.util.Collections.singletonList("QR_CODE")/g' android-participaciones/app/src/main/java/com/ofaro/participaciones/MainActivity.java
-
       - name: Build debug APK
         working-directory: android-participaciones
         run: gradle :app:assembleDebug --stacktrace
@@ -47,16 +41,16 @@ jobs:
       - name: Upload workflow artifact
         uses: actions/upload-artifact@v4
         with:
-          name: O-Faro-Participaciones-debug-apk
+          name: O-Faro-Gestion-v2.2.0-apk
           path: android-participaciones/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
 
-      - name: Publish APK and corrected source on development branch
+      - name: Publish APK on development branch
         run: |
           mkdir -p build-artifacts
-          cp android-participaciones/app/build/outputs/apk/debug/app-debug.apk build-artifacts/O-Faro-Participaciones-debug.apk
+          cp android-participaciones/app/build/outputs/apk/debug/app-debug.apk build-artifacts/O-Faro-Gestion-v2.2.0.apk
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add android-participaciones/app/src/main/java/com/ofaro/participaciones/MainActivity.java build-artifacts/O-Faro-Participaciones-debug.apk
-          git commit -m "build: APK participaciones" || exit 0
+          git add android-participaciones build-artifacts/O-Faro-Gestion-v2.2.0.apk
+          git commit -m "build: O Faro Gestion v2.2.0" || exit 0
           git push origin HEAD:feature/participaciones-apk
