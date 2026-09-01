@@ -34,10 +34,11 @@ jobs:
       - name: Ensure Android SDK 35
         run: yes | ${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager "platforms;android-35" "build-tools;35.0.0" >/dev/null
 
-      - name: Normalize Google Code Scanner imports
+      - name: Normalize scanner source
         run: |
           sed -i 's/com\.google\.android\.gms\.mlkit\.codescanner/com.google.mlkit.vision.codescanner/g' android-participaciones/app/src/main/java/com/ofaro/participaciones/MainActivity.java
           sed -i '/import android\.content\.Context;/d' android-participaciones/app/src/main/java/com/ofaro/participaciones/MainActivity.java
+          sed -i 's/IntentIntegrator\.QR_CODE_TYPES/java.util.Collections.singletonList("QR_CODE")/g' android-participaciones/app/src/main/java/com/ofaro/participaciones/MainActivity.java
 
       - name: Build debug APK
         working-directory: android-participaciones
