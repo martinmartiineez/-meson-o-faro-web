@@ -3,13 +3,12 @@
   if(!fast) return;
 
   const MAX_STALE_MS = 7 * 24 * 60 * 60 * 1000;
-  const CARTA_CACHE_KEY = 'ofaro-fast-carta-v2';
+  const CARTA_CACHE_KEY = 'ofaro-fast-carta-v4';
   const CACHE_SCHEMA_KEY = 'ofaro-fast-carta-schema';
-  const CACHE_SCHEMA = 'sheet-allergens-v1';
+  const CACHE_SCHEMA = 'sheet-allergens-v2';
 
   /* Los alérgenos de Google Sheets son la única fuente de verdad.
-     Una celda vacía significa "no mostrar alérgenos" y nunca debe
-     rellenarse de nuevo con una copia codificada en JavaScript. */
+     Una celda vacía significa "no mostrar alérgenos". */
   function decorate(data){
     if(!data || !Array.isArray(data.carta)) return data;
     return Object.assign({},data,{
@@ -33,10 +32,11 @@
     }catch(_){ return ''; }
   }
 
-  /* Invalida una sola vez las copias creadas por la versión antigua,
-     que podía volver a insertar alérgenos aunque la celda estuviera vacía. */
   try{
     if(localStorage.getItem(CACHE_SCHEMA_KEY) !== CACHE_SCHEMA){
+      localStorage.removeItem('ofaro-fast-carta-v1');
+      localStorage.removeItem('ofaro-fast-carta-v2');
+      localStorage.removeItem('ofaro-fast-carta-v3');
       localStorage.removeItem(CARTA_CACHE_KEY);
       localStorage.setItem(CACHE_SCHEMA_KEY,CACHE_SCHEMA);
     }
@@ -67,12 +67,12 @@
   function schedule(task){
     const run = ()=>{
       if('requestIdleCallback' in window){
-        requestIdleCallback(()=>task(),{timeout:1400});
+        requestIdleCallback(()=>task(),{timeout:900});
       }else{
         task();
       }
     };
-    setTimeout(run,250);
+    setTimeout(run,120);
   }
 
   if(typeof fast.loadCarta === 'function'){
@@ -113,8 +113,6 @@
       const cached = readCartaCache();
       if(cached){
         shownSignature = signature(cached.data);
-        /* Siempre comprobamos Sheets en segundo plano. La copia local permite
-           abrir la carta al instante, pero no bloquea cambios recién hechos. */
         scheduleRefresh();
         return Promise.resolve(cached.data);
       }
