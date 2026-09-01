@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
-  <meta name="theme-color" content="#111111">
+  <meta name="theme-color" content="#0b0b0b">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="O Faro Gestión">
@@ -12,27 +12,20 @@
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="apple-touch-icon" href="icon.svg">
   <link rel="icon" href="icon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="styles.css?v=20260901-1">
+  <link rel="stylesheet" href="styles.css?v=20260901-2">
 </head>
 <body>
   <div id="appShell" class="app-shell">
     <header class="topbar">
-      <div>
-        <div class="brand">MESÓN O FARO</div>
+      <button id="backButton" class="top-icon" type="button" aria-label="Volver" hidden></button>
+      <div class="top-title-wrap">
+        <div class="brand">O FARO</div>
         <div id="topSubtitle" class="subtitle">Gestión</div>
       </div>
-      <button id="homeButton" class="icon-button" type="button" aria-label="Ir al inicio" hidden>⌂</button>
+      <button id="syncButton" class="top-icon" type="button" aria-label="Actualizar" hidden></button>
     </header>
-
     <main id="app" class="app-main" aria-live="polite"></main>
-
-    <nav id="bottomNav" class="bottom-nav" hidden aria-label="Navegación principal">
-      <button data-route="home" class="nav-item is-active" type="button"><span>⌂</span><small>Inicio</small></button>
-      <button data-route="reservations" class="nav-item" type="button"><span>▣</span><small>Reservas</small></button>
-      <button data-route="web" class="nav-item" type="button"><span>◇</span><small>Web</small></button>
-      <button data-route="participations" class="nav-item" type="button"><span>◎</span><small>Premios</small></button>
-      <button data-route="tickets" class="nav-item" type="button"><span>▤</span><small>Tickets</small></button>
-    </nav>
+    <nav id="bottomNav" class="bottom-nav" hidden aria-label="Navegación principal"></nav>
   </div>
 
   <div id="modal" class="modal" hidden>
@@ -45,9 +38,9 @@
 
   <div id="printRoot" class="print-root" aria-hidden="true"></div>
   <div id="toast" class="toast" hidden></div>
+  <input id="hiddenImagePicker" type="file" accept="image/*" hidden>
+  <input id="hiddenQrImagePicker" type="file" accept="image/*" hidden>
 
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" defer></script>
-  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js" defer></script>
-  <script src="app.js?v=20260901-1" defer></script>
+  <script src="app.js?v=20260901-2" defer></script>
 </body>
 </html>
