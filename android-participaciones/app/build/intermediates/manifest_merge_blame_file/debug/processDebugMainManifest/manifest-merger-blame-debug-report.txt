@@ -1,0 +1,143 @@
+1<?xml version="1.0" encoding="utf-8"?>
+2<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+3    package="com.ofaro.participaciones"
+4    android:versionCode="4"
+5    android:versionName="2.2.0" >
+6
+7    <uses-sdk
+8        android:minSdkVersion="26"
+9        android:targetSdkVersion="35" />
+10
+11    <uses-permission android:name="android.permission.INTERNET" />
+11-->/home/runner/work/-meson-o-faro-web/-meson-o-faro-web/android-participaciones/app/src/main/AndroidManifest.xml:3:5-67
+11-->/home/runner/work/-meson-o-faro-web/-meson-o-faro-web/android-participaciones/app/src/main/AndroidManifest.xml:3:22-64
+12    <uses-permission android:name="android.permission.CAMERA" />
+12-->/home/runner/work/-meson-o-faro-web/-meson-o-faro-web/android-participaciones/app/src/main/AndroidManifest.xml:4:5-65
+12-->/home/runner/work/-meson-o-faro-web/-meson-o-faro-web/android-participaciones/app/src/main/AndroidManifest.xml:4:22-62
+13
+14    <uses-feature
+14-->/home/runner/work/-meson-o-faro-web/-meson-o-faro-web/android-participaciones/app/src/main/AndroidManifest.xml:5:5-85
+15        android:name="android.hardware.camera"
+15-->/home/runner/work/-meson-o-faro-web/-meson-o-faro-web/android-participaciones/app/src/main/AndroidManifest.xml:5:19-57
+16        android:required="false" />
+16-->/home/runner/work/-meson-o-faro-web/-meson-o-faro-web/android-participaciones/app/src/main/AndroidManifest.xml:5:58-82
+17    <uses-feature
+17-->[com.journeyapps:zxing-android-embedded:4.3.0] /home/runner/.gradle/caches/8.9/transforms/1b046687b34884ab630ec5b77d76db20/transformed/zxing-android-embedded-4.3.0/AndroidManifest.xml:28:5-30:36
+18        android:name="android.hardware.camera.front"
+18-->[com.journeyapps:zxing-android-embedded:4.3.0] /home/runner/.gradle/caches/8.9/transforms/1b046687b34884ab630ec5b77d76db20/transformed/zxing-android-embedded-4.3.0/AndroidManifest.xml:29:9-53
+19        android:required="false" /> <!-- TODO replace above two with next line after Android 4.2 -->
+19-->[com.journeyapps:zxing-android-embedded:4.3.0] /home/runner/.gradle/caches/8.9/transforms/1b046687b34884ab630ec5b77d76db20/transformed/zxing-android-embedded-4.3.0/AndroidManifest.xml:30:9-33
+20    <!-- <uses-feature android:name="android.hardware.camera.any"/> -->
+21    <uses-feature
+21-->[com.journeyapps:zxing-android-embedded:4.3.0] /home/runner/.gradle/caches/8.9/transforms/1b046687b34884ab630ec5b77d76db20/transformed/zxing-android-embedded-4.3.0/AndroidManifest.xml:33:5-35:36
+22        android:name="android.hardware.camera.autofocus"
+22-->[com.journeyapps:zxing-android-embedded:4.3.0] /home/runner/.gradle/caches/8.9/transforms/1b046687b34884ab630ec5b77d76db20/transformed/zxing-android-embedded-4.3.0/AndroidManifest.xml:34:9-57
+23        android:required="false" />
+23-->[com.journeyapps:zxing-android-embedded:4.3.0] /home/runner/.gradle/caches/8.9/transforms/1b046687b34884ab630ec5b77d76db20/transformed/zxing-android-embedded-4.3.0/AndroidManifest.xml:35:9-33
+24    <uses-feature
+24-->[com.journeyapps:zxing-android-embedded:4.3.0] /home/runner/.gradle/caches/8.9/transforms/1b046687b34884ab630ec5b77d76db20/transformed/zxing-android-embedded-4.3.0/AndroidManifest.xml:36:5-38:36
+25        android:name="android.hardware.camera.flash"
+25-->[com.journeyapps:zxing-android-embedded:4.3.0] /home/runner/.gradle/caches/8.9/transforms/1b046687b34884ab630ec5b77d76db20/transformed/zxing-android-embedded-4.3.0/AndroidManifest.xml:37:9-53
+26        android:required="false" />
+26-->[com.journeyapps:zxing-android-embedded:4.3.0] /home/runner/.gradle/caches/8.9/transforms/1b046687b34884ab630ec5b77d76db20/transformed/zxing-android-embedded-4.3.0/AndroidManifest.xml:38:9-33
+27    <uses-feature
+27-->[com.journeyapps:zxing-android-embedded:4.3.0] /home/runner/.gradle/caches/8.9/transforms/1b046687b34884ab630ec5b77d76db20/transformed/zxing-android-embedded-4.3.0/AndroidManifest.xml:39:5-41:36
+28        android:name="android.hardware.screen.landscape"
+28-->[com.journeyapps:zxing-android-embedded:4.3.0] /home/runner/.gradle/caches/8.9/transforms/1b046687b34884ab630ec5b77d76db20/transformed/zxing-android-embedded-4.3.0/AndroidManifest.xml:40:9-57
+29        android:required="false" />
+29-->[com.journeyapps:zxing-android-embedded:4.3.0] /home/runner/.gradle/caches/8.9/transforms/1b046687b34884ab630ec5b77d76db20/transformed/zxing-android-embedded-4.3.0/AndroidManifest.xml:41:9-33
+30    <uses-feature
+30-->[com.journeyapps:zxing-android-embedded:4.3.0] /home/runner/.gradle/caches/8.9/transforms/1b046687b34884ab630ec5b77d76db20/transformed/zxing-android-embedded-4.3.0/AndroidManifest.xml:42:5-44:36
+31        android:name="android.hardware.wifi"
+31-->[com.journeyapps:zxing-android-embedded:4.3.0] /home/runner/.gradle/caches/8.9/transforms/1b046687b34884ab630ec5b77d76db20/transformed/zxing-android-embedded-4.3.0/AndroidManifest.xml:43:9-45
+32        android:required="false" />
+32-->[com.journeyapps:zxing-android-embedded:4.3.0] /home/runner/.gradle/caches/8.9/transforms/1b046687b34884ab630ec5b77d76db20/transformed/zxing-android-embedded-4.3.0/AndroidManifest.xml:44:9-33
+33
+34    <application
+34-->/home/runner/work/-meson-o-faro-web/-meson-o-faro-web/android-participaciones/app/src/main/AndroidManifest.xml:7:5-41:19
+35        android:allowBackup="true"
+35-->/home/runner/work/-meson-o-faro-web/-meson-o-faro-web/android-participaciones/app/src/main/AndroidManifest.xml:8:9-35
+36        android:debuggable="true"
+37        android:extractNativeLibs="false"
+38        android:label="O Faro · Gestión"
+38-->/home/runner/work/-meson-o-faro-web/-meson-o-faro-web/android-participaciones/app/src/main/AndroidManifest.xml:9:9-41
+39        android:supportsRtl="true"
+39-->/home/runner/work/-meson-o-faro-web/-meson-o-faro-web/android-participaciones/app/src/main/AndroidManifest.xml:10:9-35
+40        android:theme="@style/AppTheme" >
+40-->/home/runner/work/-meson-o-faro-web/-meson-o-faro-web/android-participaciones/app/src/main/AndroidManifest.xml:11:9-40
+41        <activity
+41-->/home/runner/work/-meson-o-faro-web/-meson-o-faro-web/android-participaciones/app/src/main/AndroidManifest.xml:12:9-15:52
+42            android:name="com.ofaro.participaciones.MainActivity"
+42-->/home/runner/work/-meson-o-faro-web/-meson-o-faro-web/android-participaciones/app/src/main/AndroidManifest.xml:13:13-41
+43            android:exported="false"
+43-->/home/runner/work/-meson-o-faro-web/-meson-o-faro-web/android-participaciones/app/src/main/AndroidManifest.xml:14:13-37
+44            android:screenOrientation="portrait" />
+44-->/home/runner/work/-meson-o-faro-web/-meson-o-faro-web/android-participaciones/app/src/main/AndroidManifest.xml:15:13-49
+45        <activity
+45-->/home/runner/work/-meson-o-faro-web/-meson-o-faro-web/android-participaciones/app/src/main/AndroidManifest.xml:16:9-19:52
+46            android:name="com.ofaro.participaciones.ManagementActivity"
+46-->/home/runner/work/-meson-o-faro-web/-meson-o-faro-web/android-participaciones/app/src/main/AndroidManifest.xml:17:13-47
+47            android:exported="false"
+47-->/home/runner/work/-meson-o-faro-web/-meson-o-faro-web/android-participaciones/app/src/main/AndroidManifest.xml:18:13-37
+48            android:screenOrientation="portrait" />
+48-->/home/runner/work/-meson-o-faro-web/-meson-o-faro-web/android-participaciones/app/src/main/AndroidManifest.xml:19:13-49
+49        <activity
+49-->/home/runner/work/-meson-o-faro-web/-meson-o-faro-web/android-participaciones/app/src/main/AndroidManifest.xml:20:9-23:52
+50            android:name="com.ofaro.participaciones.ParticipationActivityV3"
+50-->/home/runner/work/-meson-o-faro-web/-meson-o-faro-web/android-participaciones/app/src/main/AndroidManifest.xml:21:13-52
+51            android:exported="false"
+51-->/home/runner/work/-meson-o-faro-web/-meson-o-faro-web/android-participaciones/app/src/main/AndroidManifest.xml:22:13-37
+52            android:screenOrientation="portrait" />
+52-->/home/runner/work/-meson-o-faro-web/-meson-o-faro-web/android-participaciones/app/src/main/AndroidManifest.xml:23:13-49
+53        <activity
+53-->/home/runner/work/-meson-o-faro-web/-meson-o-faro-web/android-participaciones/app/src/main/AndroidManifest.xml:24:9-27:52
+54            android:name="com.ofaro.participaciones.TicketPreviewActivity"
+54-->/home/runner/work/-meson-o-faro-web/-meson-o-faro-web/android-participaciones/app/src/main/AndroidManifest.xml:25:13-50
+55            android:exported="false"
+55-->/home/runner/work/-meson-o-faro-web/-meson-o-faro-web/android-participaciones/app/src/main/AndroidManifest.xml:26:13-37
+56            android:screenOrientation="portrait" />
+56-->/home/runner/work/-meson-o-faro-web/-meson-o-faro-web/android-participaciones/app/src/main/AndroidManifest.xml:27:13-49
+57        <activity
+57-->/home/runner/work/-meson-o-faro-web/-meson-o-faro-web/android-participaciones/app/src/main/AndroidManifest.xml:28:9-31:52
+58            android:name="com.ofaro.participaciones.WebManagementActivity"
+58-->/home/runner/work/-meson-o-faro-web/-meson-o-faro-web/android-participaciones/app/src/main/AndroidManifest.xml:29:13-50
+59            android:exported="false"
+59-->/home/runner/work/-meson-o-faro-web/-meson-o-faro-web/android-participaciones/app/src/main/AndroidManifest.xml:30:13-37
+60            android:screenOrientation="portrait" />
+60-->/home/runner/work/-meson-o-faro-web/-meson-o-faro-web/android-participaciones/app/src/main/AndroidManifest.xml:31:13-49
+61        <activity
+61-->/home/runner/work/-meson-o-faro-web/-meson-o-faro-web/android-participaciones/app/src/main/AndroidManifest.xml:32:9-40:20
+62            android:name="com.ofaro.participaciones.ManagementActivityV3"
+62-->/home/runner/work/-meson-o-faro-web/-meson-o-faro-web/android-participaciones/app/src/main/AndroidManifest.xml:33:13-49
+63            android:exported="true"
+63-->/home/runner/work/-meson-o-faro-web/-meson-o-faro-web/android-participaciones/app/src/main/AndroidManifest.xml:34:13-36
+64            android:screenOrientation="portrait" >
+64-->/home/runner/work/-meson-o-faro-web/-meson-o-faro-web/android-participaciones/app/src/main/AndroidManifest.xml:35:13-49
+65            <intent-filter>
+65-->/home/runner/work/-meson-o-faro-web/-meson-o-faro-web/android-participaciones/app/src/main/AndroidManifest.xml:36:13-39:29
+66                <action android:name="android.intent.action.MAIN" />
+66-->/home/runner/work/-meson-o-faro-web/-meson-o-faro-web/android-participaciones/app/src/main/AndroidManifest.xml:37:17-69
+66-->/home/runner/work/-meson-o-faro-web/-meson-o-faro-web/android-participaciones/app/src/main/AndroidManifest.xml:37:25-66
+67
+68                <category android:name="android.intent.category.LAUNCHER" />
+68-->/home/runner/work/-meson-o-faro-web/-meson-o-faro-web/android-participaciones/app/src/main/AndroidManifest.xml:38:17-77
+68-->/home/runner/work/-meson-o-faro-web/-meson-o-faro-web/android-participaciones/app/src/main/AndroidManifest.xml:38:27-74
+69            </intent-filter>
+70        </activity>
+71        <activity
+71-->[com.journeyapps:zxing-android-embedded:4.3.0] /home/runner/.gradle/caches/8.9/transforms/1b046687b34884ab630ec5b77d76db20/transformed/zxing-android-embedded-4.3.0/AndroidManifest.xml:47:9-53:63
+72            android:name="com.journeyapps.barcodescanner.CaptureActivity"
+72-->[com.journeyapps:zxing-android-embedded:4.3.0] /home/runner/.gradle/caches/8.9/transforms/1b046687b34884ab630ec5b77d76db20/transformed/zxing-android-embedded-4.3.0/AndroidManifest.xml:48:13-74
+73            android:clearTaskOnLaunch="true"
+73-->[com.journeyapps:zxing-android-embedded:4.3.0] /home/runner/.gradle/caches/8.9/transforms/1b046687b34884ab630ec5b77d76db20/transformed/zxing-android-embedded-4.3.0/AndroidManifest.xml:49:13-45
+74            android:screenOrientation="sensorLandscape"
+74-->[com.journeyapps:zxing-android-embedded:4.3.0] /home/runner/.gradle/caches/8.9/transforms/1b046687b34884ab630ec5b77d76db20/transformed/zxing-android-embedded-4.3.0/AndroidManifest.xml:50:13-56
+75            android:stateNotNeeded="true"
+75-->[com.journeyapps:zxing-android-embedded:4.3.0] /home/runner/.gradle/caches/8.9/transforms/1b046687b34884ab630ec5b77d76db20/transformed/zxing-android-embedded-4.3.0/AndroidManifest.xml:51:13-42
+76            android:theme="@style/zxing_CaptureTheme"
+76-->[com.journeyapps:zxing-android-embedded:4.3.0] /home/runner/.gradle/caches/8.9/transforms/1b046687b34884ab630ec5b77d76db20/transformed/zxing-android-embedded-4.3.0/AndroidManifest.xml:52:13-54
+77            android:windowSoftInputMode="stateAlwaysHidden" />
+77-->[com.journeyapps:zxing-android-embedded:4.3.0] /home/runner/.gradle/caches/8.9/transforms/1b046687b34884ab630ec5b77d76db20/transformed/zxing-android-embedded-4.3.0/AndroidManifest.xml:53:13-60
+78    </application>
+79
+80</manifest>
