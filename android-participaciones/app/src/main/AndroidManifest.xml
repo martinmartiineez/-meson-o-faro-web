@@ -5,7 +5,7 @@
 
     <application
         android:allowBackup="true"
-        android:label="O Faro · Participaciones"
+        android:label="O Faro · Gestión"
         android:supportsRtl="true"
         android:theme="@style/AppTheme">
         <meta-data
@@ -13,6 +13,10 @@
             android:value="barcode_ui" />
         <activity
             android:name=".MainActivity"
+            android:exported="false"
+            android:screenOrientation="portrait" />
+        <activity
+            android:name=".ManagementActivity"
             android:exported="true"
             android:screenOrientation="portrait">
             <intent-filter>
