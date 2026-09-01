@@ -1,5 +1,5 @@
-const CACHE = 'ofaro-gestion-v2-20260901';
-const SHELL = ['./','index.html','styles.css?v=20260901-2','app.js?v=20260901-2','manifest.webmanifest','icon.svg'];
+const CACHE = 'ofaro-gestion-v3-20260902';
+const SHELL = ['./','index.html','styles.css?v=20260901-2','app.js?v=20260901-2','remote-print.js?v=20260902-1','manifest.webmanifest','icon.svg'];
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(SHELL)).then(() => self.skipWaiting()));
 });
