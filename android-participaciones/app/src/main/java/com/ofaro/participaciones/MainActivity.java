@@ -254,7 +254,7 @@ public class MainActivity extends Activity {
     private void startScanner() {
         if (!requireApi()) return;
         IntentIntegrator integrator = new IntentIntegrator(this);
-        integrator.setDesiredBarcodeFormats(IntentIntegrator.QR_CODE_TYPES);
+        integrator.setDesiredBarcodeFormats(java.util.Collections.singletonList("QR_CODE"));
         integrator.setPrompt("Apunta al código QR del ticket");
         integrator.setBeepEnabled(false);
         integrator.setOrientationLocked(true);
