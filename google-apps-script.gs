@@ -27,7 +27,8 @@ function getPublicData_() {
   const carta = cartaRows.slice(1).filter(r => r[2]).map(r => ({
     id:r[0], categoria:r[1], producto:r[2], descripcion:r[3] || '',
     precioMedia:numOrNull_(r[4]), precioRacion:numOrNull_(r[5]),
-    disponible:yes_(r[6]), orden:Number(r[7]) || 0
+    disponible:yes_(r[6]), orden:Number(r[7]) || 0,
+    alergenos:String(r[8] == null ? '' : r[8]).trim()
   }));
 
   const menu = menuRows.slice(1).filter(r => r[3]).map(r => ({
@@ -176,9 +177,6 @@ function instalarTriggerReservas() {
     .create();
 }
 
-// AppSheet actualiza Google Sheets mediante API, por lo que onEdit no se dispara.
-// Este proceso revisa cada minuto las reservas confirmadas/denegadas sin correo enviado
-// y reutiliza exactamente la misma lógica de envío de gestionarEstadoReserva().
 function procesarReservasAppSheet() {
   const ss = SpreadsheetApp.openById(OFARO_SPREADSHEET_ID);
   const sh = ss.getSheetByName('Reservas');
