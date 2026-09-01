@@ -64,7 +64,8 @@ function readCarta_() {
     precioMedia: numberOrNull_(r[4]),
     precioRacion: numberOrNull_(r[5]),
     disponible: yes_(r[6]),
-    orden: Number(r[7]) || 0
+    orden: Number(r[7]) || 0,
+    alergenos: String(r[8] || '').trim()
   }));
 }
 
@@ -111,16 +112,29 @@ function saveAll_(data) {
 
 function writeCarta_(rows) {
   const sh = sheet_(OFARO.CARTA);
+  const current = sh.getDataRange().getDisplayValues();
+  const existingAllergens = {};
+  current.slice(1).forEach(r => {
+    if (r[0]) existingAllergens[String(r[0])] = String(r[8] || '').trim();
+  });
+
   const max = Math.max(sh.getMaxRows() - 1, 1);
-  sh.getRange(2,1,max,8).clearContent();
+  sh.getRange(2,1,max,9).clearContent();
   if (!rows.length) return;
-  const values = rows.map((r,i) => [
-    r.id || ('C' + String(i+1).padStart(3,'0')),
-    r.categoria || '', r.producto || '', r.descripcion || '',
-    blankIfNull_(r.precioMedia), blankIfNull_(r.precioRacion),
-    r.disponible === false ? 'No' : 'Sí', Number(r.orden) || (i+1)
-  ]);
-  sh.getRange(2,1,values.length,8).setValues(values);
+
+  const values = rows.map((r,i) => {
+    const id = r.id || ('C' + String(i+1).padStart(3,'0'));
+    const hasAllergens = Object.prototype.hasOwnProperty.call(r,'alergenos');
+    const allergens = hasAllergens ? String(r.alergenos || '').trim() : (existingAllergens[id] || '');
+    return [
+      id,
+      r.categoria || '', r.producto || '', r.descripcion || '',
+      blankIfNull_(r.precioMedia), blankIfNull_(r.precioRacion),
+      r.disponible === false ? 'No' : 'Sí', Number(r.orden) || (i+1),
+      allergens
+    ];
+  });
+  sh.getRange(2,1,values.length,9).setValues(values);
 }
 
 function writeMenu_(rows) {
