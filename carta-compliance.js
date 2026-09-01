@@ -22,6 +22,15 @@
     document.head.appendChild(link);
   }
 
+  function ensureProductImages(){
+    if(document.querySelector('script[data-ofaro-carta-images]')) return;
+    const script = document.createElement('script');
+    script.src = 'carta-images.js?v=20260902-1';
+    script.defer = true;
+    script.dataset.ofaroCartaImages = '1';
+    document.head.appendChild(script);
+  }
+
   function ensureFooter(){
     let footer = document.querySelector('body > footer');
     if(!footer){
@@ -58,6 +67,7 @@
 
   function init(){
     ensureLegalCss();
+    ensureProductImages();
     ensureSkipLink();
     ensureCartaNotes();
     ensureFooter();
