@@ -26,7 +26,7 @@
     try{ localStorage.setItem(key, JSON.stringify({time:Date.now(),data:data})); }catch(_){}
   }
 
-  function gviz(sheetName){
+  function gviz(sheetName,query){
     return new Promise((resolve,reject)=>{
       if(!spreadsheetId) return reject(new Error('Falta spreadsheetId'));
       const callback = '__ofaro_fast_' + Math.random().toString(36).slice(2);
@@ -49,13 +49,13 @@
       const params = new URLSearchParams({
         sheet:sheetName,
         headers:'1',
-        tq:'select *',
+        tq:query || 'select *',
         tqx:'out:json;responseHandler:' + callback,
-        _ : String(Math.floor(Date.now()/15000))
+        _ : String(Math.floor(Date.now()/10000))
       });
       script.src = 'https://docs.google.com/spreadsheets/d/' + encodeURIComponent(spreadsheetId) + '/gviz/tq?' + params.toString();
       document.head.appendChild(script);
-      timer = setTimeout(()=>done(reject,new Error('Tiempo de espera agotado')),3500);
+      timer = setTimeout(()=>done(reject,new Error('Tiempo de espera agotado')),3000);
     });
   }
 
@@ -137,16 +137,22 @@
   }
 
   async function loadCarta(force){
-    const key = 'ofaro-fast-carta-v2';
+    const key = 'ofaro-fast-carta-v4';
     if(!force){ const cached = readCache(key); if(cached) return cached; }
     try{
-      const [cartaTable,configTable] = await Promise.all([gviz(sheets.carta),gviz(sheets.config)]);
-      const data = {carta:parseCarta(cartaTable),config:parseConfig(configTable),source:'sheets-fast'};
+      /* Carta no espera a Configuración: una segunda petición no debe poder
+         bloquear ni hacer perder los alérgenos. */
+      const cartaTable = await gviz(sheets.carta,'select A,B,C,D,E,F,G,H,I');
+      const data = {
+        carta:parseCarta(cartaTable),
+        config:{incrementoTerraza:0.20},
+        source:'sheets-fast'
+      };
       writeCache(key,data);
       return data;
     }catch(err){
       const data = await fallbackPublic();
-      const slim = {carta:data.carta || [],config:data.config || {},source:data.source || 'fallback'};
+      const slim = {carta:data.carta || [],config:data.config || {incrementoTerraza:0.20},source:data.source || 'fallback'};
       writeCache(key,slim);
       return slim;
     }
@@ -173,6 +179,8 @@
     try{
       localStorage.removeItem('ofaro-fast-carta-v1');
       localStorage.removeItem('ofaro-fast-carta-v2');
+      localStorage.removeItem('ofaro-fast-carta-v3');
+      localStorage.removeItem('ofaro-fast-carta-v4');
       localStorage.removeItem('ofaro-fast-menu-v1');
     }catch(_){}
   }
