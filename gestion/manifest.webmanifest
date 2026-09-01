@@ -1,0 +1,14 @@
+{
+  "name": "O Faro · Gestión",
+  "short_name": "O Faro",
+  "description": "Gestión interna de Mesón O Faro",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f3f2ef",
+  "theme_color": "#111111",
+  "orientation": "portrait-primary",
+  "icons": [
+    {"src":"icon.svg","sizes":"any","type":"image/svg+xml","purpose":"any maskable"}
+  ]
+}
