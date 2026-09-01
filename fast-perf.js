@@ -2,29 +2,23 @@
   const fast = window.OfaroFastData;
   if(!fast) return;
 
-  const FRESH_MS = 30000;
   const MAX_STALE_MS = 7 * 24 * 60 * 60 * 1000;
   const CARTA_CACHE_KEY = 'ofaro-fast-carta-v2';
+  const CACHE_SCHEMA_KEY = 'ofaro-fast-carta-schema';
+  const CACHE_SCHEMA = 'sheet-allergens-v1';
 
-  const allergensById = {
-    C001:'Huevo, Pescado', C002:'Huevo, Pescado', C003:'',
-    C004:'Gluten, Leche, Huevo', C005:'Gluten, Leche, Huevo', C006:'',
-    C007:'Huevo', C008:'', C009:'Huevo', C010:'Crustáceos',
-    C011:'Leche', C012:'Leche', C013:'', C014:'Leche', C015:'Leche',
-    C016:'Gluten, Huevo', C017:'Pescado, Gluten',
-    C018:'Moluscos (cefalópodos)', C019:'Crustáceos', C020:'Crustáceos',
-    C021:'Moluscos', C022:'Pescado',
-    C023:'Moluscos (cefalópodos), Gluten', C024:'Moluscos (cefalópodos)',
-    C025:'Moluscos (cefalópodos), Gluten', C026:'Moluscos (cefalópodos), Gluten',
-    C027:'Moluscos'
-  };
-
+  /* Los alérgenos de Google Sheets son la única fuente de verdad.
+     Una celda vacía significa "no mostrar alérgenos" y nunca debe
+     rellenarse de nuevo con una copia codificada en JavaScript. */
   function decorate(data){
     if(!data || !Array.isArray(data.carta)) return data;
     return Object.assign({},data,{
-      carta:data.carta.map(item=>Object.assign({},item,{
-        alergenos:String(item && item.alergenos || allergensById[item && item.id] || '').trim()
-      }))
+      carta:data.carta.map(item=>{
+        const hasAllergens = item && Object.prototype.hasOwnProperty.call(item,'alergenos');
+        return Object.assign({},item,{
+          alergenos:hasAllergens ? String(item.alergenos == null ? '' : item.alergenos).trim() : ''
+        });
+      })
     });
   }
 
@@ -38,6 +32,15 @@
       });
     }catch(_){ return ''; }
   }
+
+  /* Invalida una sola vez las copias creadas por la versión antigua,
+     que podía volver a insertar alérgenos aunque la celda estuviera vacía. */
+  try{
+    if(localStorage.getItem(CACHE_SCHEMA_KEY) !== CACHE_SCHEMA){
+      localStorage.removeItem(CARTA_CACHE_KEY);
+      localStorage.setItem(CACHE_SCHEMA_KEY,CACHE_SCHEMA);
+    }
+  }catch(_){}
 
   function readCartaCache(){
     try{
@@ -64,12 +67,12 @@
   function schedule(task){
     const run = ()=>{
       if('requestIdleCallback' in window){
-        requestIdleCallback(()=>task(),{timeout:2500});
+        requestIdleCallback(()=>task(),{timeout:1400});
       }else{
         task();
       }
     };
-    setTimeout(run,900);
+    setTimeout(run,250);
   }
 
   if(typeof fast.loadCarta === 'function'){
@@ -110,7 +113,9 @@
       const cached = readCartaCache();
       if(cached){
         shownSignature = signature(cached.data);
-        if(cached.age > FRESH_MS) scheduleRefresh();
+        /* Siempre comprobamos Sheets en segundo plano. La copia local permite
+           abrir la carta al instante, pero no bloquea cambios recién hechos. */
+        scheduleRefresh();
         return Promise.resolve(cached.data);
       }
 
