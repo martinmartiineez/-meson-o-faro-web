@@ -1,825 +1,170 @@
 (() => {
-  'use strict';
+'use strict';
 
-  const API_URL = 'https://script.google.com/macros/s/AKfycbwyICNMM0CHeSFQqOaO4d6g_d84vougY6OivfrMi6G5DIIVy7Y1qK_v2tBsZKmnQ2njkQ/exec';
-  const STORAGE_KEY = 'ofaro_gestion_key';
-  const STORAGE_TERMINAL = 'ofaro_gestion_terminal';
-  const APP_VERSION = 'web-1.0.0';
+const API_URL = 'https://script.google.com/macros/s/AKfycbwyICNMM0CHeSFQqOaO4d6g_d84vougY6OivfrMi6G5DIIVy7Y1qK_v2tBsZKmnQ2njkQ/exec';
+const STORAGE_KEY = 'ofaro_gestion_key';
+const STORAGE_TERMINAL = 'ofaro_gestion_terminal';
+const CACHE_PREFIX = 'ofaro_gestion_cache_v2:';
+const APP_VERSION = 'web-2.0.0';
+const app = document.getElementById('app');
+const bottomNav = document.getElementById('bottomNav');
+const topSubtitle = document.getElementById('topSubtitle');
+const backButton = document.getElementById('backButton');
+const syncButton = document.getElementById('syncButton');
+const modal = document.getElementById('modal');
+const modalContent = document.getElementById('modalContent');
+const toastEl = document.getElementById('toast');
+const printRoot = document.getElementById('printRoot');
+const hiddenImagePicker = document.getElementById('hiddenImagePicker');
+const hiddenQrImagePicker = document.getElementById('hiddenQrImagePicker');
 
-  const app = document.getElementById('app');
-  const bottomNav = document.getElementById('bottomNav');
-  const topSubtitle = document.getElementById('topSubtitle');
-  const homeButton = document.getElementById('homeButton');
-  const modal = document.getElementById('modal');
-  const modalContent = document.getElementById('modalContent');
-  const toastEl = document.getElementById('toast');
-  const printRoot = document.getElementById('printRoot');
+const state = {
+  key: localStorage.getItem(STORAGE_KEY) || '',
+  terminal: localStorage.getItem(STORAGE_TERMINAL) || 'iPhone O Faro',
+  route: 'home', routeData: {}, reservationDate: todayIso(), reservationFilter: 'all',
+  reservationItems: [], webSections: [], webSection: null, scanner: null,
+  currentTicket: null, ticketImageData: '', ticketImagePosition: 'none',
+  online: navigator.onLine, busy: false
+};
 
-  const state = {
-    key: localStorage.getItem(STORAGE_KEY) || '',
-    terminal: localStorage.getItem(STORAGE_TERMINAL) || 'iPhone O Faro',
-    route: 'home',
-    currentReservation: null,
-    currentTicket: null,
-    ticketImageData: '',
-    ticketImagePosition: 'top',
-    scanner: null
-  };
+const ICONS = {
+  home:'<path d="M3 11.5 12 4l9 7.5V21h-6v-6H9v6H3z"/>',
+  calendar:'<path d="M6 2v4M18 2v4M3 9h18M5 4h14a2 2 0 0 1 2 2v15H3V6a2 2 0 0 1 2-2Z"/>',
+  globe:'<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a15 15 0 0 1 0 18M12 3a15 15 0 0 0 0 18"/>',
+  gift:'<path d="M3 10h18v11H3zM2 7h20v4H2zM12 7v14M12 7H7.5A2.5 2.5 0 1 1 10 4.5L12 7Zm0 0h4.5A2.5 2.5 0 1 0 14 4.5L12 7Z"/>',
+  ticket:'<path d="M3 7a2 2 0 0 0 2-2h14a2 2 0 0 0 2 2v3a2 2 0 0 0 0 4v3a2 2 0 0 0-2 2H5a2 2 0 0 0-2-2v-3a2 2 0 0 0 0-4z"/><path d="M12 7v2M12 11v2M12 15v2"/>',
+  plus:'<path d="M12 5v14M5 12h14"/>', search:'<circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/>',
+  chevronLeft:'<path d="m15 18-6-6 6-6"/>', chevronRight:'<path d="m9 18 6-6-6-6"/>', refresh:'<path d="M20 6v5h-5M4 18v-5h5"/><path d="M18.5 9A7 7 0 0 0 6 6.5L4 9M5.5 15A7 7 0 0 0 18 17.5l2-2.5"/>',
+  more:'<circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/>',
+  phone:'<path d="M5 4h4l2 5-3 2a15 15 0 0 0 5 5l2-3 5 2v4a2 2 0 0 1-2 2C9.7 21 3 14.3 3 6a2 2 0 0 1 2-2Z"/>',
+  message:'<path d="M21 12a8 8 0 0 1-8 8H7l-4 2 2-5a8 8 0 1 1 16-5Z"/>', edit:'<path d="m4 16-1 5 5-1L19 9l-4-4Z"/><path d="m13 7 4 4"/>',
+  check:'<path d="m5 12 4 4L19 6"/>', x:'<path d="M6 6l12 12M18 6 6 18"/>', mail:'<path d="M3 5h18v14H3z"/><path d="m3 7 9 7 9-7"/>',
+  users:'<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM22 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8"/>',
+  clock:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>', settings:'<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-2.8 2.8-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6v.2h-4V21a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1L4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9A1.7 1.7 0 0 0 3 14H2.8v-4H3a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9L4.2 7 7 4.2l.1.1A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-1.6v-.2h4V3a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1L19.8 7l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.2v4H21a1.7 1.7 0 0 0-1.6 1Z"/>',
+  history:'<path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5M12 7v5l3 2"/>', image:'<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-5-5L5 20"/>',
+  qr:'<path d="M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h3v3h-3zM19 14h2v7h-5M14 19h2v2h-2"/>',
+  menu:'<path d="M4 6h16M4 12h16M4 18h16"/>', store:'<path d="M4 10v11h16V10M3 10l2-6h14l2 6M8 21v-6h8v6"/>',
+  bell:'<path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/>', popup:'<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 8h10M7 12h6"/>',
+  link:'<path d="M10 13a5 5 0 0 0 7.1.1l2-2a5 5 0 0 0-7.1-7.1l-1.1 1.1M14 11a5 5 0 0 0-7.1-.1l-2 2A5 5 0 0 0 12 20l1.1-1.1"/>',
+  document:'<path d="M6 2h9l5 5v15H6zM14 2v6h6M9 13h8M9 17h8"/>', camera:'<path d="M4 7h4l2-3h4l2 3h4v13H4z"/><circle cx="12" cy="13" r="4"/>',
+  copy:'<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3"/>', share:'<path d="M12 3v12M7 8l5-5 5 5M5 13v8h14v-8"/>'
+};
+function icon(name, cls=''){ return `<svg class="${cls}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[name]||ICONS.more}</svg>`; }
+function esc(v){ return String(v ?? '').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function val(v){ return String(v ?? '').trim(); }
+function todayIso(){ const d=new Date(); return isoDate(d); }
+function isoDate(d){ const y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,'0'),day=String(d.getDate()).padStart(2,'0'); return `${y}-${m}-${day}`; }
+function addDays(iso,n){ const d=new Date(`${iso}T12:00:00`); d.setDate(d.getDate()+n); return isoDate(d); }
+function prettyDate(iso){ const d=new Date(`${iso}T12:00:00`); const now=todayIso(); const rel=iso===now?'Hoy':iso===addDays(now,1)?'Mañana':iso===addDays(now,-1)?'Ayer':''; const s=new Intl.DateTimeFormat('es-ES',{weekday:'short',day:'numeric',month:'short'}).format(d).replace('.',''); return {main:rel||s,sub:rel?s:''}; }
+function norm(s){ return val(s).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase(); }
+function sleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
+function toast(msg){ toastEl.textContent=msg; toastEl.hidden=false; clearTimeout(toast.t); toast.t=setTimeout(()=>toastEl.hidden=true,2300); }
+function statusClass(s){ const n=norm(s); if(['confirmada','completada','llego','sentada','en servicio','valida','canjeada'].includes(n)) return 'ok'; if(['pendiente'].includes(n)) return 'warn'; if(['denegada','cancelada','no se presento'].includes(n)) return 'bad'; return ''; }
+function errorBox(msg){ return `<div class="notice error">${esc(msg)}</div>`; }
+function spinner(text='Actualizando…'){ return `<div class="loader-line"><span class="spinner"></span>${esc(text)}</div>`; }
+function emptyBox(title,text,ico='calendar'){ return `<div class="empty"><div class="empty-icon">${icon(ico)}</div><strong>${esc(title)}</strong>${esc(text)}</div>`; }
 
-  const esc = value => String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
-  const val = value => String(value ?? '').trim();
-  const todayIso = () => {
-    const d = new Date();
-    const y = d.getFullYear();
-    const m = String(d.getMonth()+1).padStart(2,'0');
-    const day = String(d.getDate()).padStart(2,'0');
-    return `${y}-${m}-${day}`;
-  };
+function cacheKey(action,payload={}){ return CACHE_PREFIX+btoa(unescape(encodeURIComponent(action+':'+JSON.stringify(payload)))).replace(/=+$/,''); }
+function readCache(action,payload={}){ try{ const x=JSON.parse(localStorage.getItem(cacheKey(action,payload))||'null'); return x&&x.data?x:null; }catch(_){ return null; } }
+function writeCache(action,payload,data){ try{ localStorage.setItem(cacheKey(action,payload),JSON.stringify({time:Date.now(),data})); }catch(_){} }
+function clearCache(){ Object.keys(localStorage).filter(k=>k.startsWith(CACHE_PREFIX)).forEach(k=>localStorage.removeItem(k)); }
 
-  function toast(message){
-    toastEl.textContent = message;
-    toastEl.hidden = false;
-    clearTimeout(toast._timer);
-    toast._timer = setTimeout(()=>{ toastEl.hidden = true; }, 2600);
-  }
+async function post(action,payload={},opts={}){
+  if(!state.key) throw new Error('Falta la clave de gestión.');
+  const controller=new AbortController(); const timer=setTimeout(()=>controller.abort(),opts.timeout||14000);
+  try{
+    const response=await fetch(API_URL,{method:'POST',body:JSON.stringify({action,key:state.key,terminal:state.terminal,appVersion:APP_VERSION,...payload}),cache:'no-store',redirect:'follow',signal:controller.signal});
+    const text=await response.text(); let data;
+    try{data=JSON.parse(text);}catch(_){throw new Error('La API no devolvió una respuesta válida.');}
+    if(!response.ok||!data||data.ok===false) throw new Error((data&&data.error)||`Error HTTP ${response.status}`);
+    if(opts.cache!==false) writeCache(action,payload,data);
+    state.online=true; return data;
+  }catch(err){ state.online=false; if(err.name==='AbortError') throw new Error('La conexión está tardando demasiado.'); throw err; }
+  finally{clearTimeout(timer);}
+}
+function setConnection(el,ok,text){ if(!el)return; el.className=`connection ${ok?'online':'offline'}`; el.textContent=text; }
 
-  function loader(text='Cargando…'){
-    return `<div class="loader"><span class="dot"></span><span class="dot"></span><span class="dot"></span><strong>${esc(text)}</strong></div>`;
-  }
+function navHtml(){ const items=[['home','home','Inicio'],['reservations','calendar','Reservas'],['web','globe','Web'],['participations','gift','Premios'],['tickets','ticket','Tickets']]; return items.map(([route,ico,label])=>`<button class="nav-item ${state.route===route?'is-active':''}" data-route="${route}" type="button">${icon(ico)}<span>${label}</span></button>`).join(''); }
+function updateChrome(title){ topSubtitle.textContent=title; bottomNav.innerHTML=navHtml(); bottomNav.hidden=!state.key; bottomNav.querySelectorAll('[data-route]').forEach(b=>b.onclick=()=>setRoute(b.dataset.route)); backButton.innerHTML=icon('chevronLeft'); syncButton.innerHTML=icon('refresh'); backButton.hidden=!state.key||state.route==='home'; syncButton.hidden=!state.key; backButton.onclick=()=>setRoute('home'); }
+function page(title,html){ updateChrome(title); app.innerHTML=`<div class="page-enter">${html}</div>`; window.scrollTo({top:0,behavior:'instant'}); }
+function setRoute(route,data={}){ state.route=route; state.routeData=data; if(route==='home')renderHome(); else if(route==='reservations')renderReservations(data.date||state.reservationDate); else if(route==='web')renderWebSections(); else if(route==='participations')renderParticipations(); else if(route==='tickets')renderTickets(); else if(route==='history')renderHistory(); else if(route==='settings')renderSettings(); }
+backButton.onclick=()=>setRoute('home');
+syncButton.onclick=()=>{ clearCache(); toast('Actualizando datos…'); setRoute(state.route,state.routeData); };
 
-  function errorBox(message){
-    return `<div class="notice error">${esc(message)}</div>`;
-  }
+function openModal(html){ modalContent.innerHTML=html; modal.hidden=false; document.body.style.overflow='hidden'; modalContent.querySelectorAll('[data-close-modal]').forEach(x=>x.onclick=closeModal); }
+async function closeModal(){ if(state.scanner){try{await state.scanner.stop();}catch(_){} try{state.scanner.clear();}catch(_){} state.scanner=null;} modal.hidden=true; modalContent.innerHTML=''; document.body.style.overflow=''; }
+modal.addEventListener('click',e=>{if(e.target.matches('[data-close-modal]'))closeModal();});
+function modalHead(kicker,title){ return `<div class="modal-head"><div><div class="eyebrow">${esc(kicker)}</div><h2>${esc(title)}</h2></div><button class="modal-close" data-close-modal type="button">${icon('x')}</button></div>`; }
+function requireAuth(){ if(state.key)return true; renderLogin(); return false; }
 
-  async function post(action, payload={}){
-    if(!state.key) throw new Error('Falta la clave de gestión.');
-    const body = Object.assign({action,key:state.key,terminal:state.terminal,appVersion:APP_VERSION}, payload || {});
-    const response = await fetch(API_URL, {
-      method:'POST',
-      body:JSON.stringify(body),
-      cache:'no-store',
-      redirect:'follow'
-    });
-    const text = await response.text();
-    let data;
-    try { data = JSON.parse(text); }
-    catch(_){ throw new Error('La API no devolvió una respuesta válida.'); }
-    if(!response.ok || !data || data.ok === false) throw new Error((data && data.error) || `Error HTTP ${response.status}`);
-    return data;
-  }
+function renderLogin(){ bottomNav.hidden=true; backButton.hidden=true; syncButton.hidden=true; page('Acceso privado',`<section class="hero"><div class="eyebrow">Mesón O Faro</div><h1>Gestión</h1><p>Acceso privado al panel interno. La clave se guarda solo en este dispositivo.</p></section><section class="card"><label class="field"><span>Clave de gestión</span><input id="loginKey" type="password" autocomplete="current-password" placeholder="Clave de la app"></label><label class="field"><span>Nombre del dispositivo</span><input id="loginTerminal" value="${esc(state.terminal)}" autocomplete="off"></label><button id="loginButton" class="btn full" style="margin-top:14px">ENTRAR</button><div id="loginStatus" style="margin-top:10px"></div></section><div class="install-box" style="margin-top:12px"><strong>Instálala como app</strong><p>En Safari: Compartir → Añadir a pantalla de inicio. Después se abrirá a pantalla completa.</p></div>`);
+  document.getElementById('loginButton').onclick=async()=>{ const btn=document.getElementById('loginButton'), st=document.getElementById('loginStatus'); const key=val(document.getElementById('loginKey').value),terminal=val(document.getElementById('loginTerminal').value)||'iPhone O Faro'; if(!key){st.innerHTML=errorBox('Introduce la clave.');return;} btn.disabled=true;st.innerHTML=spinner('Comprobando acceso…'); try{state.key=key;state.terminal=terminal;const r=await post('appPing',{}, {cache:false});localStorage.setItem(STORAGE_KEY,key);localStorage.setItem(STORAGE_TERMINAL,terminal);clearCache();toast(r.message||'Conectado');setRoute('home');}catch(e){state.key='';st.innerHTML=errorBox(e.message);btn.disabled=false;} };
+}
 
-  async function testConnection(key = state.key, terminal = state.terminal){
-    const body = {action:'appPing',key,terminal,appVersion:APP_VERSION};
-    const response = await fetch(API_URL,{method:'POST',body:JSON.stringify(body),cache:'no-store',redirect:'follow'});
-    const data = await response.json();
-    if(!response.ok || !data || data.ok === false) throw new Error((data && data.error) || 'No se pudo conectar.');
-    return data;
-  }
+async function renderHome(){ if(!requireAuth())return; page('Panel',`<section class="hero"><div class="hero-line"><div><div class="eyebrow">Hoy en O Faro</div><h1>Panel</h1></div><span id="homeConnection" class="connection">Conectando</span></div></section><div id="homeMetrics" class="metrics"><div class="metric"><strong class="skeleton skeleton-line">0</strong><span>Reservas</span></div><div class="metric"><strong class="skeleton skeleton-line">0</strong><span>Personas</span></div><div class="metric"><strong class="skeleton skeleton-line">0</strong><span>Pendientes</span></div></div><div id="nextReservation" class="section"></div><section class="section"><div class="section-title-row"><div><h2>Acciones rápidas</h2><p>Lo que más usas, a un toque.</p></div></div><div class="quick-grid">${quick('plus','Nueva reserva','Crear ahora','reservations','new')}${quick('calendar','Reservas','Ver hoy','reservations')}${quick('store','Carta','Disponibilidad','web','carta')}${quick('menu','Menú','Editar hoy','web','menu')}${quick('gift','Participación','Generar código','participations','generate')}${quick('ticket','Ticket libre','Previsualizar','tickets','free')}</div></section><section class="section"><div class="section-title-row"><div><h2>Gestión</h2><p>Todos los módulos.</p></div></div><div class="module-list">${moduleCard('web','globe','Gestión web','Carta, menú, avisos, horarios y más')}${moduleCard('participations','gift','Promociones','Generar, validar y canjear premios')}${moduleCard('tickets','ticket','Tickets','QR, plantillas, imágenes y texto libre')}${moduleCard('history','history','Historial','Movimientos recientes del sistema')}${moduleCard('settings','settings','Ajustes','Acceso, dispositivo y caché')}</div></section>`);
+  app.querySelectorAll('[data-go]').forEach(b=>b.onclick=()=>{ const r=b.dataset.go,sub=b.dataset.sub; if(r==='reservations'&&sub==='new'){setRoute('reservations');setTimeout(openNewReservation,80);} else if(r==='web'&&sub){setRoute('web');setTimeout(()=>openWebSection(sub),100);} else if(r==='participations'&&sub==='generate'){setRoute('participations');} else if(r==='tickets'&&sub==='free'){setRoute('tickets');setTimeout(openFreeTicket,100);} else setRoute(r); });
+  const payload={date:todayIso(),limit:200,includeClosed:true}; const cached=readCache('reservationList',payload); if(cached) paintHome(cached.data,true); try{ const data=await post('reservationList',payload); paintHome(data,false); setConnection(document.getElementById('homeConnection'),true,'En línea'); }catch(e){ setConnection(document.getElementById('homeConnection'),false,'Sin conexión'); if(!cached) document.getElementById('homeMetrics').insertAdjacentHTML('afterend',errorBox(e.message)); }
+}
+function quick(ico,title,sub,go,subroute=''){return `<button class="quick ${go==='reservations'&&subroute==='new'?'accent':''}" data-go="${go}" data-sub="${subroute}"><span class="quick-icon">${icon(ico)}</span><span><strong>${title}</strong><small>${sub}</small></span></button>`;}
+function moduleCard(go,ico,title,sub){return `<button class="module" data-go="${go}"><div class="module-top"><span class="module-icon">${icon(ico)}</span><span class="module-arrow">›</span></div><div><strong>${title}</strong><small>${sub}</small></div></button>`;}
+function paintHome(res,cached){ const items=res.items||[],open=items.filter(r=>!['denegada','cancelada'].includes(norm(r.state))),pending=open.filter(r=>norm(r.state)==='pendiente').length,people=open.reduce((n,r)=>n+(Number(r.people)||0),0); const metrics=document.getElementById('homeMetrics'); if(metrics)metrics.innerHTML=`<div class="metric"><strong>${open.length}</strong><span>Reservas</span></div><div class="metric"><strong>${people}</strong><span>Personas</span></div><div class="metric ${pending?'warn':'ok'}"><strong>${pending}</strong><span>Pendientes</span></div>`; const now=new Date(),mins=now.getHours()*60+now.getMinutes(); let next=open.filter(r=>{const m=(r.time||'').match(/(\d{1,2}):(\d{2})/);return m&&(+m[1]*60+(+m[2]))>=mins&&norm(r.serviceState)!=='completada';}).sort((a,b)=>(a.time||'').localeCompare(b.time||''))[0]; const el=document.getElementById('nextReservation'); if(!el)return; if(next){el.innerHTML=`<div class="section-title-row"><div><h2>Próxima</h2><p>${cached?'Datos guardados · actualizando…':'Siguiente reserva de hoy'}</p></div></div><div class="card next-card"><div class="next-time">${esc(next.time)}</div><div class="next-name">${esc(next.name)}</div><div class="next-meta">${Number(next.people||0)} personas${next.table?` · Mesa ${esc(next.table)}`:''}${next.zone&&next.zone!=='Sin asignar'?` · ${esc(next.zone)}`:''}</div><div class="next-actions"><button class="primary" data-open-next>ABRIR</button><button data-arrive-next>LLEGÓ</button></div></div>`; el.querySelector('[data-open-next]').onclick=()=>openReservation(next);el.querySelector('[data-arrive-next]').onclick=()=>quickReservationAction(next,'serviceState','Llegó');}else{el.innerHTML='';}}
 
-  function setRoute(route){
-    state.route = route;
-    [...bottomNav.querySelectorAll('.nav-item')].forEach(btn=>btn.classList.toggle('is-active',btn.dataset.route===route));
-    homeButton.hidden = route === 'home' || !state.key;
-    if(route === 'home') renderHome();
-    else if(route === 'reservations') renderReservations();
-    else if(route === 'web') renderWebSections();
-    else if(route === 'participations') renderParticipations();
-    else if(route === 'tickets') renderTickets();
-    else if(route === 'history') renderHistory();
-    else if(route === 'settings') renderSettings();
-  }
+async function renderReservations(date=state.reservationDate){ if(!requireAuth())return; state.reservationDate=date; const pd=prettyDate(date); page('Reservas',`<div class="toolbar"><div class="date-nav"><button id="prevDay">${icon('chevronLeft')}</button><label class="date-center"><input id="reservationDate" type="date" value="${esc(date)}"><div class="date-display"><span>${esc(pd.main)}</span><small>${esc(pd.sub)}</small></div></label><button id="nextDay">${icon('chevronRight')}</button></div><div class="filter-row" id="reservationFilters">${[['all','Todas'],['pending','Pendientes'],['confirmed','Confirmadas'],['arrived','Llegaron'],['done','Completadas']].map(([k,t])=>`<button class="chip ${state.reservationFilter===k?'is-active':''}" data-filter="${k}">${t}</button>`).join('')}</div><div class="search-box">${icon('search')}<input id="reservationSearch" placeholder="Buscar nombre, teléfono o mesa"></div></div><div id="reservationSummary" class="metrics" style="margin-bottom:10px"><div class="metric"><strong>–</strong><span>Reservas</span></div><div class="metric"><strong>–</strong><span>Personas</span></div><div class="metric"><strong>–</strong><span>Pendientes</span></div></div><div id="reservationList" class="reservation-list"><div class="skeleton skeleton-card"></div><div class="skeleton skeleton-card"></div></div><button id="newReservationFab" class="fab">${icon('plus')}Nueva reserva</button>`);
+  document.getElementById('prevDay').onclick=()=>renderReservations(addDays(date,-1));document.getElementById('nextDay').onclick=()=>renderReservations(addDays(date,1));document.getElementById('reservationDate').onchange=e=>renderReservations(e.target.value||todayIso());document.getElementById('newReservationFab').onclick=openNewReservation;document.querySelectorAll('[data-filter]').forEach(b=>b.onclick=()=>{state.reservationFilter=b.dataset.filter;document.querySelectorAll('[data-filter]').forEach(x=>x.classList.toggle('is-active',x===b));paintReservationList();});document.getElementById('reservationSearch').oninput=paintReservationList;
+  const payload={date,limit:200,includeClosed:true}; const cached=readCache('reservationList',payload); if(cached){state.reservationItems=cached.data.items||[];paintReservationSummary(cached.data);paintReservationList();} try{const res=await post('reservationList',payload);state.reservationItems=res.items||[];paintReservationSummary(res);paintReservationList();}catch(e){if(!cached)document.getElementById('reservationList').innerHTML=errorBox(e.message);}
+}
+function paintReservationSummary(res){const items=res.items||[],pending=items.filter(r=>norm(r.state)==='pendiente').length;const el=document.getElementById('reservationSummary');if(el)el.innerHTML=`<div class="metric"><strong>${items.length}</strong><span>Reservas</span></div><div class="metric"><strong>${Number(res.totalPeople||0)}</strong><span>Personas</span></div><div class="metric ${pending?'warn':'ok'}"><strong>${pending}</strong><span>Pendientes</span></div>`;}
+function filteredReservations(){const q=norm(document.getElementById('reservationSearch')?.value||'');return state.reservationItems.filter(r=>{let ok=true;const f=state.reservationFilter;if(f==='pending')ok=norm(r.state)==='pendiente';else if(f==='confirmed')ok=norm(r.state)==='confirmada';else if(f==='arrived')ok=['llego','sentada','en servicio'].includes(norm(r.serviceState));else if(f==='done')ok=norm(r.serviceState)==='completada';if(q)ok=ok&&norm([r.name,r.phone,r.email,r.table,r.zone].join(' ')).includes(q);return ok;});}
+function paintReservationList(){const el=document.getElementById('reservationList');if(!el)return;const items=filteredReservations();if(!items.length){el.innerHTML=emptyBox('Nada por aquí','No hay reservas con este filtro.');return;}el.innerHTML=items.map(reservationRow).join('');el.querySelectorAll('[data-open-res]').forEach(b=>b.onclick=()=>{const r=state.reservationItems.find(x=>x.id===b.dataset.openRes);if(r)openReservation(r);});el.querySelectorAll('[data-quick-arrive]').forEach(b=>b.onclick=()=>{const r=state.reservationItems.find(x=>x.id===b.dataset.quickArrive);if(r)quickReservationAction(r,'serviceState','Llegó');});el.querySelectorAll('[data-quick-confirm]').forEach(b=>b.onclick=()=>{const r=state.reservationItems.find(x=>x.id===b.dataset.quickConfirm);if(r)reservationStateAction(r,'Confirmada',false);});}
+function reservationRow(r){const svc=r.serviceState||'Pendiente';const pending=norm(r.state)==='pendiente';return `<article class="reservation"><div class="reservation-time">${esc(r.time||'--:--')}<small>${r.table?`MESA ${esc(r.table)}`:'SIN MESA'}</small></div><div><div class="reservation-name">${esc(r.name||'Sin nombre')}</div><div class="reservation-meta">${Number(r.people||0)} personas${r.zone&&r.zone!=='Sin asignar'?` · ${esc(r.zone)}`:''}${r.phone?` · ${esc(r.phone)}`:''}</div><div class="reservation-tags"><span class="tag ${statusClass(r.state)}">${esc(r.state||'Pendiente')}</span>${norm(svc)!=='pendiente'?`<span class="tag blue">${esc(svc)}</span>`:''}${r.customerEmailState?`<span class="tag">Email ${/^sí/i.test(r.customerEmailState)?'✓':'·'}</span>`:''}</div></div><button class="reservation-menu" data-open-res="${esc(r.id)}">${icon('more')}</button><div class="reservation-quick">${pending?`<button class="mini-btn ok" data-quick-confirm="${esc(r.id)}">CONFIRMAR</button>`:''}${!['llego','sentada','en servicio','completada'].includes(norm(svc))?`<button class="mini-btn fill" data-quick-arrive="${esc(r.id)}">LLEGÓ</button>`:''}<button class="mini-btn" data-open-res="${esc(r.id)}">DETALLES</button></div></article>`;}
 
-  function page(title, html){
-    topSubtitle.textContent = title;
-    app.innerHTML = html;
-    window.scrollTo({top:0,behavior:'instant'});
-  }
+function openReservation(r){state.currentReservation=r;const phone=val(r.phone).replace(/[^+\d]/g,''),wa=phone.replace(/^\+/,'');openModal(`${modalHead('Reserva',`${r.time||''} · ${r.name||''}`)}<div class="detail-grid"><div class="detail"><span>Fecha</span><strong>${esc(r.date||'—')}</strong></div><div class="detail"><span>Personas</span><strong>${Number(r.people||0)}</strong></div><div class="detail"><span>Mesa</span><strong>${esc(r.table||'—')}</strong></div><div class="detail"><span>Zona</span><strong>${esc(r.zone||'Sin asignar')}</strong></div><div class="detail wide"><span>Contacto</span><strong>${esc(r.phone||'Sin teléfono')}${r.email?` · ${esc(r.email)}`:''}</strong></div>${r.notes?`<div class="detail wide"><span>Observaciones</span><strong>${esc(r.notes)}</strong></div>`:''}</div><div class="modal-section"><div class="modal-section-title">Acciones</div><div class="action-list">${phone?`<a class="action-tile" href="tel:${esc(phone)}">${icon('phone')}Llamar</a>`:''}${wa?`<a class="action-tile" href="https://wa.me/${esc(wa)}" target="_blank">${icon('message')}WhatsApp</a>`:''}<button class="action-tile" id="editReservation">${icon('edit')}Editar</button><button class="action-tile" id="previewReservation">${icon('ticket')}Ticket</button>${r.email?`<button class="action-tile" id="resendReservationEmail">${icon('mail')}Reenviar</button>`:''}</div></div><div class="modal-section"><div class="modal-section-title">Estado de reserva</div><div class="segmented">${['Pendiente','Confirmada','Denegada','Cancelada'].map(s=>`<button class="segment ${s===r.state?'active':''} ${s==='Confirmada'?'ok':(s==='Denegada'||s==='Cancelada'?'bad':'')}" data-res-state="${s}">${s}</button>`).join('')}</div></div><div class="modal-section"><div class="modal-section-title">Estado del servicio</div><div class="segmented">${['Pendiente','Llegó','Sentada','En servicio','Completada','No se presentó'].map(s=>`<button class="segment ${s===(r.serviceState||'Pendiente')?'active':''}" data-service="${s}">${s}</button>`).join('')}</div></div><div id="reservationActionStatus" style="margin-top:10px"></div>`);
+  document.getElementById('editReservation').onclick=()=>openEditReservation(r);document.getElementById('previewReservation').onclick=()=>previewReservationTicket(r);document.getElementById('resendReservationEmail')?.addEventListener('click',()=>reservationStateAction(r,r.state,true));modalContent.querySelectorAll('[data-res-state]').forEach(b=>b.onclick=()=>reservationStateAction(r,b.dataset.resState,false));modalContent.querySelectorAll('[data-service]').forEach(b=>b.onclick=()=>quickReservationAction(r,'serviceState',b.dataset.service,true));}
+async function reservationStateAction(r,newState,forceEmail){const st=document.getElementById('reservationActionStatus');let sendEmail=false;if(['Confirmada','Denegada'].includes(newState)&&r.email){sendEmail=forceEmail||confirm(`¿Enviar correo al cliente al marcar la reserva como ${newState.toLowerCase()}?`);}if(newState==='Cancelada'&&!confirm('¿Cancelar esta reserva?'))return; if(st)st.innerHTML=spinner('Guardando…');try{await post('reservationAction',{id:r.id,state:newState,sendEmail,forceEmail},{cache:false});toast(`Reserva: ${newState}`);await closeModal();clearCache();renderReservations(state.reservationDate);}catch(e){if(st)st.innerHTML=errorBox(e.message);}}
+async function quickReservationAction(r,field,value,stay=false){try{await post('reservationUpdate',{id:r.id,[field]:value},{cache:false});toast(value);clearCache();if(stay){r[field]=value;openReservation(r);}else renderReservations(state.reservationDate);}catch(e){toast(e.message);}}
 
-  function openModal(html){
-    modalContent.innerHTML = html;
-    modal.hidden = false;
-    document.body.style.overflow = 'hidden';
-  }
+function reservationForm(r={}){return `<div class="fields-two"><label class="field"><span>Fecha</span><input id="rfDate" type="date" value="${esc(r.date||state.reservationDate||todayIso())}"></label><label class="field"><span>Hora</span><input id="rfTime" type="time" value="${esc(r.time||'14:00')}"></label></div><label class="field"><span>Nombre</span><input id="rfName" value="${esc(r.name||'')}"></label><div class="fields-two"><label class="field"><span>Teléfono</span><input id="rfPhone" type="tel" value="${esc(r.phone||'')}"></label><label class="field"><span>Personas</span><input id="rfPeople" type="number" min="1" max="30" value="${Number(r.people||2)}"></label></div><label class="field"><span>Correo</span><input id="rfEmail" type="email" value="${esc(r.email||'')}"></label><div class="fields-two"><label class="field"><span>Mesa</span><input id="rfTable" value="${esc(r.table||'')}"></label><label class="field"><span>Zona</span><select id="rfZone">${['Sin asignar','Interior','Terraza'].map(z=>`<option ${z===(r.zone||'Sin asignar')?'selected':''}>${z}</option>`).join('')}</select></label></div><label class="field"><span>Observaciones</span><textarea id="rfNotes">${esc(r.notes||'')}</textarea></label>`;}
+function readReservationForm(){return {date:val(document.getElementById('rfDate').value),time:val(document.getElementById('rfTime').value),name:val(document.getElementById('rfName').value),phone:val(document.getElementById('rfPhone').value),email:val(document.getElementById('rfEmail').value),people:Number(document.getElementById('rfPeople').value)||1,table:val(document.getElementById('rfTable').value),zone:val(document.getElementById('rfZone').value),notes:val(document.getElementById('rfNotes').value)};}
+function openNewReservation(){openModal(`${modalHead('Agenda','Nueva reserva')}${reservationForm()}<button id="saveNewReservation" class="btn full" style="margin-top:14px">GUARDAR RESERVA</button><div id="reservationFormStatus" style="margin-top:9px"></div>`);document.getElementById('saveNewReservation').onclick=async()=>{const x=readReservationForm(),st=document.getElementById('reservationFormStatus');if(!x.name||!x.phone||!x.date||!x.time){st.innerHTML=errorBox('Nombre, teléfono, fecha y hora son obligatorios.');return;}st.innerHTML=spinner('Guardando…');try{await post('reservationCreate',{nombre:x.name,telefono:x.phone,correo:x.email,fecha:x.date,hora:x.time,personas:x.people,mesa:x.table,zona:x.zone,observaciones:x.notes},{cache:false});toast('Reserva creada');await closeModal();clearCache();state.reservationDate=x.date;renderReservations(x.date);}catch(e){st.innerHTML=errorBox(e.message);}};}
+function openEditReservation(r){openModal(`${modalHead('Reserva','Editar datos')}${reservationForm(r)}<button id="saveEditReservation" class="btn full" style="margin-top:14px">GUARDAR CAMBIOS</button><div id="reservationFormStatus" style="margin-top:9px"></div>`);document.getElementById('saveEditReservation').onclick=async()=>{const x=readReservationForm(),st=document.getElementById('reservationFormStatus');st.innerHTML=spinner('Guardando…');try{await post('reservationFullUpdate',{id:r.id,...x},{cache:false});toast('Reserva actualizada');await closeModal();clearCache();state.reservationDate=x.date;renderReservations(x.date);}catch(e){st.innerHTML=errorBox(e.message);}};}
 
-  async function closeModal(){
-    if(state.scanner){
-      try{ await state.scanner.stop(); }catch(_){}
-      try{ state.scanner.clear(); }catch(_){}
-      state.scanner = null;
-    }
-    modal.hidden = true;
-    modalContent.innerHTML = '';
-    document.body.style.overflow = '';
-  }
+const WEB_ICONS={carta:'store',menu:'menu',config:'settings',images:'image',social:'link',notices:'bell',popup:'popup',prizes:'gift',qr:'qr',templates:'ticket',legal:'document'};
+async function renderWebSections(){if(!requireAuth())return;page('Gestión web',`<section class="hero"><div class="eyebrow">Contenido en vivo</div><h1>Web</h1><p>Cambia lo que ve el cliente sin entrar en Google Sheets.</p></section><div id="webSectionGrid" class="web-grid">${Array(6).fill('<div class="skeleton skeleton-card"></div>').join('')}</div>`);const cached=readCache('webSections',{});if(cached)paintWebSections(cached.data.items||[]);try{const r=await post('webSections',{});paintWebSections(r.items||[]);}catch(e){if(!cached)document.getElementById('webSectionGrid').innerHTML=errorBox(e.message);}}
+function paintWebSections(items){state.webSections=items;const el=document.getElementById('webSectionGrid');if(!el)return;el.innerHTML=items.map(s=>`<button class="web-card" data-section="${esc(s.key)}"><span class="module-icon">${icon(WEB_ICONS[s.key]||'document')}</span><div><strong>${esc(s.title)}</strong><small>${esc(s.description||'Editar contenido')}</small></div></button>`).join('');el.querySelectorAll('[data-section]').forEach(b=>b.onclick=()=>openWebSection(b.dataset.section));}
+async function openWebSection(key){const def=state.webSections.find(x=>x.key===key)||{title:key};state.webSection=key;page(def.title||'Gestión web',`<section class="hero"><div class="hero-line"><div><div class="eyebrow">Gestión web</div><h1>${esc(def.title||key)}</h1></div><button id="webAdd" class="btn" style="width:auto" hidden>+ NUEVO</button></div><p>${esc(def.description||'')}</p></section><div class="search-box">${icon('search')}<input id="webSearch" placeholder="Buscar"></div><div id="webRows" class="row-list" style="margin-top:10px"><div class="skeleton skeleton-card"></div><div class="skeleton skeleton-card"></div></div>`);backButton.hidden=false;backButton.onclick=()=>renderWebSections();const payload={section:key};const cached=readCache('webSectionRows',payload);if(cached)paintWebRows(cached.data);try{const r=await post('webSectionRows',payload);paintWebRows(r);}catch(e){if(!cached)document.getElementById('webRows').innerHTML=errorBox(e.message);}}
+function paintWebRows(res){state.routeData.webData=res;const add=document.getElementById('webAdd');if(add){add.hidden=!res.allowAdd;add.onclick=()=>openWebEditor(res,null);}const search=document.getElementById('webSearch');if(search)search.oninput=()=>paintWebRowList(res);paintWebRowList(res);}
+function paintWebRowList(res){const q=norm(document.getElementById('webSearch')?.value||'');const rows=(res.rows||[]).filter(r=>!q||norm(Object.values(r).join(' ')).includes(q));const el=document.getElementById('webRows');if(!el)return;if(!rows.length){el.innerHTML=emptyBox('Sin registros','No hay elementos que mostrar.','document');return;}el.innerHTML=rows.map(r=>webRowHtml(res,r)).join('');el.querySelectorAll('[data-edit-row]').forEach(b=>{b.onclick=()=>{const row=rows.find(r=>String(r[res.idKey])===b.dataset.editRow);if(row)openWebEditor(res,row);};});el.querySelectorAll('[data-toggle-row]').forEach(b=>b.onclick=()=>quickToggleWeb(res,rows.find(r=>String(r[res.idKey])===b.dataset.toggleRow),b.dataset.toggleField));}
+function webRowHtml(res,r){const key=state.webSection;let title=r.producto||r.plato||r.nombre||r.titulo||r.campo||r.red||r.texto||r.pagina||r[res.idKey]||'Registro';let sub='';if(key==='carta')sub=[r.categoria,r.descripcion].filter(Boolean).join(' · ');else if(key==='menu')sub=[r.tipo,r.fecha,r.descripcion].filter(Boolean).join(' · ');else if(key==='config')sub=r.valor||'';else sub=[r.tipo,r.url,r.contenido,r.etiqueta].filter(Boolean).join(' · ');const activeField=['disponible','activo','activa'].find(k=>Object.prototype.hasOwnProperty.call(r,k));const isOn=activeField?['si','sí','true','1'].includes(norm(r[activeField])):false;let extra='';if(key==='carta')extra=`<div class="price-line">${r.precioMedia?`<span class="price">Media <b>${esc(r.precioMedia)}€</b></span>`:''}${r.precioRacion?`<span class="price">Ración <b>${esc(r.precioRacion)}€</b></span>`:''}</div>`;return `<article class="data-row"><div class="data-row-head"><div><div class="data-row-title">${esc(title)}</div><div class="data-row-sub">${esc(sub)}</div>${extra}</div>${activeField?`<button class="toggle ${isOn?'on':''}" data-toggle-row="${esc(r[res.idKey])}" data-toggle-field="${activeField}" aria-label="Cambiar disponibilidad"></button>`:''}</div><div class="data-row-actions"><button class="mini-btn" data-edit-row="${esc(r[res.idKey])}">EDITAR</button></div></article>`;}
+async function quickToggleWeb(res,row,field){if(!row)return;const old=row[field],newVal=['si','sí','true','1'].includes(norm(old))?'No':'Sí';row[field]=newVal;paintWebRowList(res);try{await post('webSectionSave',{section:state.webSection,values:row},{cache:false});clearCache();toast(newVal==='Sí'?'Activado':'Desactivado');}catch(e){row[field]=old;paintWebRowList(res);toast(e.message);}}
+function openWebEditor(res,row){const isNew=!row;const values=row?{...row}:{};openModal(`${modalHead(isNew?'Nuevo registro':'Editar',res.title||'Contenido')}<div id="webEditorFields">${(res.fields||[]).map(f=>{const v=values[f.key]??'';if(f.readOnly&&isNew)return'';if(['activo','activa','disponible'].includes(f.key))return `<label class="field"><span>${esc(f.label)}</span><select data-web-field="${esc(f.key)}"><option ${norm(v)==='si'||norm(v)==='sí'?'selected':''}>Sí</option><option ${norm(v)==='no'?'selected':''}>No</option></select></label>`;if(f.multiline)return `<label class="field"><span>${esc(f.label)}</span><textarea data-web-field="${esc(f.key)}" ${f.readOnly?'readonly':''}>${esc(v)}</textarea></label>`;return `<label class="field"><span>${esc(f.label)}</span><input data-web-field="${esc(f.key)}" value="${esc(v)}" ${f.readOnly?'readonly':''} ${f.type==='number'?'inputmode="decimal"':''}></label>`;}).join('')}</div><div class="btn-row" style="margin-top:14px"><button id="saveWebRow" class="btn">GUARDAR</button>${!isNew&&res.allowDelete?'<button id="deleteWebRow" class="btn ghost-danger">ELIMINAR</button>':''}</div><div id="webEditorStatus" style="margin-top:9px"></div>`);document.getElementById('saveWebRow').onclick=async()=>{const out={...values};modalContent.querySelectorAll('[data-web-field]').forEach(el=>out[el.dataset.webField]=el.value);const st=document.getElementById('webEditorStatus');st.innerHTML=spinner('Guardando…');try{await post('webSectionSave',{section:state.webSection,values:out},{cache:false});toast('Guardado');await closeModal();clearCache();openWebSection(state.webSection);}catch(e){st.innerHTML=errorBox(e.message);}};document.getElementById('deleteWebRow')?.addEventListener('click',async()=>{if(!confirm('¿Eliminar este registro?'))return;const st=document.getElementById('webEditorStatus');st.innerHTML=spinner('Eliminando…');try{await post('webSectionDelete',{section:state.webSection,id:row[res.idKey]},{cache:false});toast('Eliminado');await closeModal();clearCache();openWebSection(state.webSection);}catch(e){st.innerHTML=errorBox(e.message);}});}
 
-  function modalHeader(kicker,title){
-    return `<div class="modal-title-row"><div><div class="kicker">${esc(kicker)}</div><h2>${esc(title)}</h2></div><button class="modal-close" data-close-modal type="button">×</button></div>`;
-  }
+function renderParticipations(){if(!requireAuth())return;page('Promociones',`<section class="hero"><div class="eyebrow">Participaciones</div><h1>Premios</h1><p>Genera códigos y valida tickets desde el iPhone.</p></section><section class="card"><div class="section-title-row" style="margin:0 0 10px"><div><h2>Generar</h2><p>Nuevas participaciones</p></div></div><div class="stepper"><button id="qtyMinus">−</button><input id="partQty" value="1" inputmode="numeric"><button id="qtyPlus">+</button></div><button id="generatePart" class="btn full" style="margin-top:10px">GENERAR</button><div id="partGenerated" style="margin-top:10px"></div></section><section class="card"><div class="section-title-row" style="margin:0 0 10px"><div><h2>Validar y canjear</h2><p>Escanea QR o escribe el código</p></div></div><div class="btn-row"><button id="scanQr" class="btn">${icon('camera')} ESCANEAR</button><button id="scanQrPhoto" class="btn secondary">${icon('image')} FOTO</button></div><label class="field"><span>Código</span><input id="manualCode" placeholder="OF-XXXXX-XXXXX" autocapitalize="characters"></label><button id="validateCode" class="btn secondary full">VALIDAR CÓDIGO</button><div id="validationResult" style="margin-top:10px"></div></section>`);const qty=document.getElementById('partQty');document.getElementById('qtyMinus').onclick=()=>qty.value=Math.max(1,(Number(qty.value)||1)-1);document.getElementById('qtyPlus').onclick=()=>qty.value=Math.min(20,(Number(qty.value)||1)+1);document.getElementById('generatePart').onclick=generateParticipations;document.getElementById('validateCode').onclick=()=>validateParticipation(val(document.getElementById('manualCode').value));document.getElementById('scanQr').onclick=openQrScanner;document.getElementById('scanQrPhoto').onclick=()=>hiddenQrImagePicker.click();}
+async function generateParticipations(){const btn=document.getElementById('generatePart'),out=document.getElementById('partGenerated'),n=Math.max(1,Math.min(20,Number(document.getElementById('partQty').value)||1));btn.disabled=true;out.innerHTML=spinner(`Generando ${n}…`);const codes=[];try{for(let i=0;i<n;i++){const r=await post('participationCreate',{origin:'WebApp iPhone'},{cache:false});codes.push(r);}out.innerHTML=codes.map(r=>`<div class="data-row"><div class="data-row-title">${esc(r.code)}</div><div class="data-row-sub">Creado ${esc(r.createdAt||'ahora')}</div><div class="data-row-actions"><button class="mini-btn" data-preview-code="${esc(r.code)}" data-qr="${esc(r.qrPayload||'OFARO:'+r.code)}">PREVISUALIZAR</button><button class="mini-btn" data-copy-code="${esc(r.code)}">COPIAR</button></div></div>`).join('');out.querySelectorAll('[data-preview-code]').forEach(b=>b.onclick=()=>previewParticipationTicket(b.dataset.previewCode,b.dataset.qr));out.querySelectorAll('[data-copy-code]').forEach(b=>b.onclick=()=>navigator.clipboard?.writeText(b.dataset.copyCode).then(()=>toast('Código copiado')));clearCache();}catch(e){out.innerHTML=errorBox(e.message);}finally{btn.disabled=false;}}
+async function validateParticipation(raw){const code=val(raw);const out=document.getElementById('validationResult');if(!code){out.innerHTML=errorBox('Introduce o escanea un código.');return;}out.innerHTML=spinner('Validando…');try{const r=await post('participationValidate',{code},{cache:false});document.getElementById('manualCode').value=r.code||code;const cls=r.canRedeem?'ok':(r.hasPrize?'':'');out.innerHTML=`<div class="prize-result ${cls}"><div class="big">${esc(r.prize||'Sin premio')}</div><div class="code">${esc(r.code)}</div><div style="margin-top:7px;font-size:.8rem">Estado: ${esc(r.state||'—')}</div></div>${r.canRedeem?'<button id="redeemPrize" class="btn ok full" style="margin-top:9px">CANJEAR PREMIO</button>':''}`;document.getElementById('redeemPrize')?.addEventListener('click',()=>redeemParticipation(r.code));}catch(e){out.innerHTML=errorBox(e.message);}}
+async function redeemParticipation(code){if(!confirm('¿Confirmar el canje? El código quedará inutilizado.'))return;const out=document.getElementById('validationResult');out.innerHTML=spinner('Canjeando…');try{const r=await post('participationRedeem',{code},{cache:false});out.innerHTML=`<div class="prize-result ok"><div class="big">CANJEADO</div><div>${esc(r.prize||'Premio')}</div><div class="code">${esc(r.code)}</div></div>`;toast('Premio canjeado');clearCache();}catch(e){out.innerHTML=errorBox(e.message);}}
+async function loadScriptOnce(src,globalName){if(globalName&&window[globalName])return;if(document.querySelector(`script[data-lazy="${src}"]`)){for(let i=0;i<50;i++){if(!globalName||window[globalName])return;await sleep(100);}throw new Error('No se pudo cargar el módulo.');}await new Promise((resolve,reject)=>{const s=document.createElement('script');s.src=src;s.async=true;s.dataset.lazy=src;s.onload=resolve;s.onerror=reject;document.head.appendChild(s);});}
+async function openQrScanner(){openModal(`${modalHead('Escáner','Leer participación')}<div class="scanner"><div id="reader"></div></div><div id="scanStatus">${spinner('Preparando cámara…')}</div>`);try{await loadScriptOnce('https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js','Html5Qrcode');const qr=new Html5Qrcode('reader');state.scanner=qr;await qr.start({facingMode:'environment'},{fps:10,qrbox:{width:230,height:230}},async decoded=>{await closeModal();setRoute('participations');setTimeout(()=>{document.getElementById('manualCode').value=decoded;validateParticipation(decoded);},80);},()=>{});document.getElementById('scanStatus').innerHTML='<div class="notice">Apunta al QR del ticket.</div>';}catch(e){document.getElementById('scanStatus').innerHTML=errorBox(e.message||'No se pudo abrir la cámara.');}}
+hiddenQrImagePicker.onchange=async()=>{const file=hiddenQrImagePicker.files?.[0];if(!file)return;try{await loadScriptOnce('https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js','Html5Qrcode');let host=document.getElementById('reader-file-temp');if(!host){host=document.createElement('div');host.id='reader-file-temp';host.style.display='none';document.body.appendChild(host);}const qr=new Html5Qrcode('reader-file-temp');const decoded=await qr.scanFile(file,true);try{qr.clear();}catch(_){}setRoute('participations');setTimeout(()=>{document.getElementById('manualCode').value=decoded;validateParticipation(decoded);},80);}catch(e){toast('No pude leer el QR de la foto.');}finally{hiddenQrImagePicker.value='';}};
 
-  function requireAuth(){
-    if(state.key) return true;
-    renderLogin();
-    return false;
-  }
+async function renderTickets(){if(!requireAuth())return;page('Tickets',`<section class="hero"><div class="eyebrow">Impresión y preview</div><h1>Tickets</h1><p>Previsualiza sin impresora, añade imágenes y usa AirPrint/PDF.</p></section><div class="ticket-grid">${ticketAction('free','document','Texto libre','Título, texto y QR')}${ticketAction('image','image','Solo imagen','Foto o diseño')}${ticketAction('qr','qr','QR rápidos','Web, carta, reservas…')}${ticketAction('templates','ticket','Plantillas','Formatos guardados')}</div><section class="section"><div class="section-title-row"><div><h2>QR rápidos</h2><p>Accesos configurados</p></div></div><div id="qrQuickList" class="row-list">${spinner('Cargando QR…')}</div></section><section class="section"><div class="section-title-row"><div><h2>Plantillas</h2><p>Tickets predefinidos</p></div></div><div id="templateList" class="row-list">${spinner('Cargando plantillas…')}</div></section>`);app.querySelectorAll('[data-ticket-action]').forEach(b=>b.onclick=()=>{if(b.dataset.ticketAction==='free')openFreeTicket();else if(b.dataset.ticketAction==='image')openImageTicket();});loadTicketLists();}
+function ticketAction(key,ico,title,sub){return `<button class="ticket-action" data-ticket-action="${key}">${icon(ico)}<strong>${title}</strong><small>${sub}</small></button>`;}
+async function loadTicketLists(){const cq=readCache('qrList',{}),ct=readCache('templateList',{});if(cq)paintQrList(cq.data.items||[]);if(ct)paintTemplateList(ct.data.items||[]);try{const [qr,tp]=await Promise.all([post('qrList',{}),post('templateList',{})]);paintQrList(qr.items||[]);paintTemplateList(tp.items||[]);}catch(e){if(!cq)document.getElementById('qrQuickList').innerHTML=errorBox(e.message);if(!ct)document.getElementById('templateList').innerHTML=errorBox(e.message);}}
+function paintQrList(items){const el=document.getElementById('qrQuickList');if(!el)return;el.innerHTML=items.length?items.map(q=>`<div class="data-row"><div class="data-row-title">${esc(q.name)}</div><div class="data-row-sub">${esc(q.ticketText||q.content)}</div><div class="data-row-actions"><button class="mini-btn" data-qr-preview="${esc(q.id)}">PREVISUALIZAR</button><button class="mini-btn" data-copy-qr="${esc(q.content)}">COPIAR</button></div></div>`).join(''):emptyBox('Sin QR','No hay accesos QR activos.','qr');el.querySelectorAll('[data-qr-preview]').forEach(b=>{const q=items.find(x=>x.id===b.dataset.qrPreview);b.onclick=()=>previewTicket({title:'MESÓN O FARO',subtitle:q.name,body:q.ticketText||'',qr:q.content});});el.querySelectorAll('[data-copy-qr]').forEach(b=>b.onclick=()=>navigator.clipboard?.writeText(b.dataset.copyQr).then(()=>toast('Copiado')));}
+function paintTemplateList(items){const el=document.getElementById('templateList');if(!el)return;el.innerHTML=items.length?items.map(t=>`<div class="data-row"><div class="data-row-title">${esc(t.name)}</div><div class="data-row-sub">${esc(t.type||'Plantilla')}</div><div class="data-row-actions"><button class="mini-btn" data-template-preview="${esc(t.id)}">PREVISUALIZAR</button></div></div>`).join(''):emptyBox('Sin plantillas','No hay plantillas activas.','ticket');el.querySelectorAll('[data-template-preview]').forEach(b=>{const t=items.find(x=>x.id===b.dataset.templatePreview);b.onclick=()=>previewTicket({title:t.title||'MESÓN O FARO',subtitle:t.name,body:t.text||'',qr:t.qr?.content||''});});}
+function openFreeTicket(){openModal(`${modalHead('Tickets','Texto libre')}<label class="field"><span>Título</span><input id="freeTitle" placeholder="MESÓN O FARO"></label><label class="field"><span>Texto</span><textarea id="freeBody" placeholder="Escribe el contenido"></textarea></label><label class="field"><span>QR opcional</span><input id="freeQr" placeholder="URL o texto"></label><button id="freePreview" class="btn full" style="margin-top:14px">PREVISUALIZAR</button>`);document.getElementById('freePreview').onclick=()=>previewTicket({title:val(document.getElementById('freeTitle').value)||'MESÓN O FARO',subtitle:'',body:val(document.getElementById('freeBody').value),qr:val(document.getElementById('freeQr').value)});}
+function openImageTicket(){state.ticketImageData='';hiddenImagePicker.click();hiddenImagePicker.onchange=()=>{const f=hiddenImagePicker.files?.[0];if(!f)return;const reader=new FileReader();reader.onload=()=>previewTicket({title:'',subtitle:'',body:'',qr:'',image:reader.result,imagePosition:'top'});reader.readAsDataURL(f);hiddenImagePicker.value='';};}
+function previewReservationTicket(r){previewTicket({title:'MESÓN O FARO',subtitle:'RESERVA',body:`${r.date||''}  ${r.time||''}\n\n${(r.name||'').toUpperCase()}\n${Number(r.people||0)} PERSONAS\n${r.table?'Mesa: '+r.table+'\n':''}${r.zone&&r.zone!=='Sin asignar'?'Zona: '+r.zone+'\n':''}${r.phone?'Tel: '+r.phone+'\n':''}${r.notes?'\nOBSERVACIONES\n'+r.notes+'\n':''}\n${r.id||''}`});}
+function previewParticipationTicket(code,qr){previewTicket({title:'MESÓN O FARO',subtitle:'PARTICIPACIÓN',body:`${code}\n\nConserva este ticket.`,qr:qr||`OFARO:${code}`,code});}
+async function ensureQrLib(){await loadScriptOnce('https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js','QRCode');}
+function previewTicket(ticket){state.currentTicket={...ticket};state.ticketImageData=ticket.image||'';state.ticketImagePosition=ticket.imagePosition||(state.ticketImageData?'top':'none');renderTicketPreview();}
+function renderTicketPreview(){const t=state.currentTicket||{};openModal(`${modalHead('Previsualización','Ticket')}<div class="ticket-wrap"><div id="ticketPreview" class="ticket">${ticketInner(t)}</div></div><div class="modal-section"><div class="modal-section-title">Imagen</div><div class="btn-row three"><button class="mini-btn ${state.ticketImagePosition==='none'?'fill':''}" data-img-pos="none">SIN</button><button class="mini-btn ${state.ticketImagePosition==='top'?'fill':''}" data-img-pos="top">ARRIBA</button><button class="mini-btn ${state.ticketImagePosition==='bottom'?'fill':''}" data-img-pos="bottom">ABAJO</button></div><button id="chooseTicketImage" class="btn secondary full" style="margin-top:8px">${icon('image')} ELEGIR IMAGEN</button></div><div class="btn-row" style="margin-top:13px"><button id="printTicket" class="btn">IMPRIMIR / PDF</button><button id="shareTicket" class="btn secondary">COMPARTIR TEXTO</button></div>`);modalContent.querySelectorAll('[data-img-pos]').forEach(b=>b.onclick=()=>{state.ticketImagePosition=b.dataset.imgPos;renderTicketPreview();});document.getElementById('chooseTicketImage').onclick=()=>{hiddenImagePicker.onchange=()=>{const f=hiddenImagePicker.files?.[0];if(!f)return;const rd=new FileReader();rd.onload=()=>{state.ticketImageData=rd.result;state.ticketImagePosition='top';renderTicketPreview();};rd.readAsDataURL(f);hiddenImagePicker.value='';};hiddenImagePicker.click();};document.getElementById('printTicket').onclick=async()=>{if(!confirm(state.ticketImageData&&state.ticketImagePosition!=='none'?`Se imprimirá con imagen ${state.ticketImagePosition==='top'?'ARRIBA':'ABAJO'}. ¿Continuar?`:'Se imprimirá SIN imagen. ¿Continuar?'))return;printRoot.innerHTML=`<div class="ticket-wrap"><div class="ticket">${ticketInner(t,'printTicketQr')}</div></div>`;if(t.qr){try{await ensureQrLib();const el=document.getElementById('printTicketQr');if(el)new QRCode(el,{text:t.qr,width:180,height:180,correctLevel:QRCode.CorrectLevel.M});}catch(_){}}setTimeout(()=>window.print(),100);};document.getElementById('shareTicket').onclick=async()=>{const text=[t.title,t.subtitle,t.body,t.qr].filter(Boolean).join('\n');try{if(navigator.share)await navigator.share({title:t.title||'O Faro',text});else{await navigator.clipboard.writeText(text);toast('Texto copiado');}}catch(_){}};if(t.qr){setTimeout(async()=>{try{await ensureQrLib();const el=document.getElementById('ticketQr');if(el){el.innerHTML='';new QRCode(el,{text:t.qr,width:180,height:180,correctLevel:QRCode.CorrectLevel.M});}}catch(_){}},20);}}
+function ticketInner(t,qrId='ticketQr'){const img=state.ticketImageData&&state.ticketImagePosition!=='none'?`<img class="ticket-image" src="${state.ticketImageData}">`:'';return `${state.ticketImagePosition==='top'?img:''}${t.title?`<h3>${esc(t.title)}</h3>`:''}${t.subtitle?`<div><strong>${esc(t.subtitle)}</strong></div>`:''}${t.title||t.subtitle?'<div class="ticket-rule"></div>':''}${t.code?`<div class="ticket-code">${esc(t.code)}</div>`:''}${t.body?`<div class="ticket-body">${esc(t.body)}</div>`:''}${t.qr?`<div id="${qrId}" class="qr-box"></div>`:''}${state.ticketImagePosition==='bottom'?img:''}`;}
 
-  function renderLogin(){
-    bottomNav.hidden = true;
-    homeButton.hidden = true;
-    page('Acceso privado', `
-      <section class="hero">
-        <div class="kicker">O Faro · Gestión</div>
-        <h1>Panel interno</h1>
-        <p class="lead">Gestiona reservas, carta, menú, premios y tickets desde tu iPhone. La clave queda guardada únicamente en este dispositivo.</p>
-      </section>
-      <section class="card">
-        <label class="field"><span>Clave app gestión</span><input id="loginKey" type="password" autocomplete="current-password" placeholder="Pega la clave de la app"></label>
-        <label class="field"><span>Nombre de este terminal</span><input id="loginTerminal" value="${esc(state.terminal)}" autocomplete="off"></label>
-        <button id="loginButton" class="btn" type="button">CONECTAR</button>
-        <div id="loginStatus" style="margin-top:10px"></div>
-      </section>
-      <p class="install-note">Después puedes instalarla desde Safari: <strong>Compartir → Añadir a pantalla de inicio</strong>.</p>
-    `);
-    document.getElementById('loginButton').addEventListener('click', async () => {
-      const button = document.getElementById('loginButton');
-      const status = document.getElementById('loginStatus');
-      const key = val(document.getElementById('loginKey').value);
-      const terminal = val(document.getElementById('loginTerminal').value) || 'iPhone O Faro';
-      if(!key){ status.innerHTML = errorBox('Introduce la clave de gestión.'); return; }
-      button.disabled = true;
-      status.innerHTML = loader('Comprobando acceso…');
-      try{
-        const res = await testConnection(key,terminal);
-        state.key = key;
-        state.terminal = terminal;
-        localStorage.setItem(STORAGE_KEY,key);
-        localStorage.setItem(STORAGE_TERMINAL,terminal);
-        bottomNav.hidden = false;
-        toast(res.message || 'Conexión correcta');
-        setRoute('home');
-      }catch(err){
-        status.innerHTML = errorBox(err.message);
-        button.disabled = false;
-      }
-    });
-  }
+async function renderHistory(){if(!requireAuth())return;page('Historial',`<section class="hero"><div class="eyebrow">Actividad</div><h1>Historial</h1><p>Últimos movimientos registrados.</p></section><div class="filter-row" id="historyFilters"><button class="chip is-active" data-hf="all">Todos</button><button class="chip" data-hf="reserva">Reservas</button><button class="chip" data-hf="participacion">Participaciones</button><button class="chip" data-hf="qr">QR</button></div><div id="historyList" class="row-list" style="margin-top:10px">${spinner('Cargando historial…')}</div>`);let hf='all';const paint=items=>{const list=hf==='all'?items:items.filter(x=>norm(x.type).includes(hf));const el=document.getElementById('historyList');el.innerHTML=list.length?list.map(h=>`<div class="data-row"><div class="data-row-title">${esc(h.type||'Acción')} · ${esc(h.action||'')}</div><div class="data-row-sub">${esc(h.date||'')} · ${esc(h.reference||'')}</div>${h.detail?`<div class="notice" style="margin-top:7px">${esc(h.detail)}</div>`:''}</div>`).join(''):emptyBox('Sin movimientos','No hay registros con este filtro.','history');};let items=[];document.querySelectorAll('[data-hf]').forEach(b=>b.onclick=()=>{hf=b.dataset.hf;document.querySelectorAll('[data-hf]').forEach(x=>x.classList.toggle('is-active',x===b));paint(items);});const c=readCache('historyList',{limit:80});if(c){items=c.data.items||[];paint(items);}try{const r=await post('historyList',{limit:80});items=r.items||[];paint(items);}catch(e){if(!c)document.getElementById('historyList').innerHTML=errorBox(e.message);}}
 
-  async function renderHome(){
-    if(!requireAuth()) return;
-    bottomNav.hidden = false;
-    page('Gestión', `
-      <section class="hero">
-        <div class="kicker">Panel interno</div>
-        <h1>¿Qué necesitas?</h1>
-        <p class="lead" id="homeStatus">Conectando con O Faro…</p>
-      </section>
-      <div class="grid two">
-        <button class="module-card dark" data-go="reservations"><strong>Reservas</strong><small id="homeReservationText">Consultar y gestionar</small></button>
-        <button class="module-card" data-go="web"><strong>Gestión web</strong><small>Carta, menú, avisos, horarios…</small></button>
-        <button class="module-card" data-go="participations"><strong>Participaciones</strong><small>Generar, validar y canjear</small></button>
-        <button class="module-card" data-go="tickets"><strong>Tickets</strong><small>Previsualizar, QR e imágenes</small></button>
-        <button class="module-card" data-go="history"><strong>Historial</strong><small>Movimientos recientes</small></button>
-        <button class="module-card" data-go="settings"><strong>Ajustes</strong><small>Acceso e instalación</small></button>
-      </div>
-    `);
-    app.querySelectorAll('[data-go]').forEach(btn=>btn.addEventListener('click',()=>setRoute(btn.dataset.go)));
-    try{
-      const [ping,reservations] = await Promise.all([
-        post('appPing'),
-        post('reservationList',{date:todayIso(),limit:100,includeClosed:true})
-      ]);
-      document.getElementById('homeStatus').textContent = `${ping.message || 'API operativa'} · ${state.terminal}`;
-      const items = reservations.items || [];
-      const pending = items.filter(r=>/^pendiente$/i.test(r.state)).length;
-      document.getElementById('homeReservationText').textContent = `${items.length} hoy · ${pending} pendientes`;
-    }catch(err){
-      document.getElementById('homeStatus').textContent = `Sin conexión: ${err.message}`;
-    }
-  }
+function renderSettings(){if(!requireAuth())return;page('Ajustes',`<section class="hero"><div class="eyebrow">Dispositivo</div><h1>Ajustes</h1><p>Configuración local de esta WebApp.</p></section><section class="card"><label class="field"><span>Nombre del dispositivo</span><input id="settingsTerminal" value="${esc(state.terminal)}"></label><label class="field"><span>Clave de gestión</span><input id="settingsKey" type="password" value="${esc(state.key)}"></label><button id="saveSettings" class="btn full" style="margin-top:13px">GUARDAR</button><button id="testSettings" class="btn secondary full" style="margin-top:8px">PROBAR CONEXIÓN</button><div id="settingsStatus" style="margin-top:9px"></div></section><section class="card"><div class="switch-line"><div><strong>Caché rápida</strong><small>Datos guardados para abrir vistas al instante</small></div><button id="clearCache" class="mini-btn">VACIAR</button></div><div class="switch-line"><div><strong>Versión</strong><small>${APP_VERSION}</small></div><span class="tag">PWA</span></div></section><div class="install-box"><strong>Añadir a pantalla de inicio</strong><p>Safari → Compartir → Añadir a pantalla de inicio. Es la forma recomendada de usar este panel en iPhone.</p></div><button id="logout" class="btn ghost-danger full" style="margin-top:12px">CERRAR SESIÓN EN ESTE DISPOSITIVO</button>`);document.getElementById('saveSettings').onclick=()=>{state.terminal=val(document.getElementById('settingsTerminal').value)||'iPhone O Faro';state.key=val(document.getElementById('settingsKey').value);localStorage.setItem(STORAGE_TERMINAL,state.terminal);localStorage.setItem(STORAGE_KEY,state.key);toast('Ajustes guardados');};document.getElementById('testSettings').onclick=async()=>{const st=document.getElementById('settingsStatus');document.getElementById('saveSettings').click();st.innerHTML=spinner('Conectando…');try{const r=await post('appPing',{}, {cache:false});st.innerHTML=`<div class="notice success">${esc(r.message||'Conexión correcta')}</div>`;}catch(e){st.innerHTML=errorBox(e.message);}};document.getElementById('clearCache').onclick=()=>{clearCache();toast('Caché vaciada');};document.getElementById('logout').onclick=()=>{if(!confirm('¿Cerrar sesión en este iPhone?'))return;localStorage.removeItem(STORAGE_KEY);state.key='';clearCache();renderLogin();};}
 
-  async function renderReservations(date = todayIso()){
-    if(!requireAuth()) return;
-    page('Reservas', `
-      <div class="section-head"><div><div class="kicker">Agenda</div><h2>Reservas</h2></div><button id="newReservation" class="btn" style="width:auto;min-height:44px">+ NUEVA</button></div>
-      <div class="card">
-        <div class="search-row">
-          <label class="field"><span>Fecha</span><input id="reservationDate" type="date" value="${esc(date)}"></label>
-          <button id="loadReservations" class="btn secondary" type="button">VER</button>
-        </div>
-      </div>
-      <div id="reservationSummary" style="margin:14px 2px 10px">${loader('Cargando reservas…')}</div>
-      <div id="reservationList"></div>
-    `);
-    document.getElementById('newReservation').addEventListener('click',()=>openNewReservation());
-    document.getElementById('loadReservations').addEventListener('click',()=>renderReservations(document.getElementById('reservationDate').value || todayIso()));
-    try{
-      const res = await post('reservationList',{date,limit:200,includeClosed:true});
-      const items = res.items || [];
-      const pending = items.filter(r=>/^pendiente$/i.test(r.state)).length;
-      document.getElementById('reservationSummary').innerHTML = `<span class="status-pill">${items.length} reservas</span> <span class="status-pill warn">${pending} pendientes</span> <span class="status-pill">${Number(res.totalPeople||0)} personas</span>`;
-      const list = document.getElementById('reservationList');
-      if(!items.length){
-        list.innerHTML = `<div class="empty">No hay reservas para esta fecha.</div>`;
-        return;
-      }
-      list.innerHTML = items.map(r=>reservationCard(r)).join('');
-      list.querySelectorAll('[data-reservation]').forEach(btn=>btn.addEventListener('click',()=>{
-        const item = items.find(r=>r.id===btn.dataset.reservation);
-        if(item) openReservation(item);
-      }));
-    }catch(err){
-      document.getElementById('reservationList').innerHTML = errorBox(err.message);
-    }
-  }
-
-  function reservationCard(r){
-    const stateClass = /^confirmada$/i.test(r.state)?'ok':(/^denegada|cancelada$/i.test(r.state)?'bad':(/^pendiente$/i.test(r.state)?'warn':''));
-    return `<article class="card">
-      <div class="card-head"><div><div class="card-title">${esc(r.time || '--:--')} · ${esc(r.name)}</div><div class="card-meta">${Number(r.people||0)} personas${r.table?` · Mesa ${esc(r.table)}`:''}${r.zone && r.zone!=='Sin asignar'?` · ${esc(r.zone)}`:''}</div></div><span class="status-pill ${stateClass}">${esc(r.state || 'Pendiente')}</span></div>
-      ${r.notes?`<div class="card-note">${esc(r.notes)}</div>`:''}
-      <div class="card-meta" style="margin-top:9px">Servicio: <strong>${esc(r.serviceState || 'Pendiente')}</strong>${r.customerEmailState?` · Correo: ${esc(r.customerEmailState)}`:''}</div>
-      <div class="actions"><button class="btn secondary" data-reservation="${esc(r.id)}">ABRIR</button></div>
-    </article>`;
-  }
-
-  function openReservation(r){
-    state.currentReservation = r;
-    const phoneDigits = val(r.phone).replace(/[^+\d]/g,'');
-    const waDigits = phoneDigits.replace(/^\+/,'');
-    openModal(`${modalHeader('Reserva',`${r.time || ''} · ${r.name || ''}`)}
-      <div class="card">
-        <div class="card-meta">${esc(r.date)} · ${Number(r.people||0)} personas</div>
-        <div class="card-title" style="margin-top:4px">${esc(r.name)}</div>
-        <div class="card-meta">${esc(r.phone || 'Sin teléfono')} · ${esc(r.email || 'Sin correo')}</div>
-        <div class="card-meta">Mesa: ${esc(r.table || '—')} · Zona: ${esc(r.zone || 'Sin asignar')}</div>
-        ${r.notes?`<div class="card-note">${esc(r.notes)}</div>`:''}
-        <div style="margin-top:12px"><span class="status-pill">${esc(r.state||'Pendiente')}</span> <span class="status-pill">${esc(r.serviceState||'Pendiente')}</span></div>
-      </div>
-      <div class="actions">
-        ${phoneDigits?`<a class="btn secondary" href="tel:${esc(phoneDigits)}" style="text-decoration:none;text-align:center">LLAMAR</a>`:''}
-        ${waDigits?`<a class="btn secondary" href="https://wa.me/${esc(waDigits)}" target="_blank" rel="noopener" style="text-decoration:none;text-align:center">WHATSAPP</a>`:''}
-        <button class="btn secondary" id="editReservation">EDITAR</button>
-        <button class="btn secondary" id="previewReservation">TICKET</button>
-      </div>
-      <div class="section-head"><h3>Estado de reserva</h3></div>
-      <div class="grid two">
-        <button class="btn ok" data-res-state="Confirmada">CONFIRMAR</button>
-        <button class="btn danger" data-res-state="Denegada">DENEGAR</button>
-        <button class="btn secondary" data-res-state="Pendiente">PENDIENTE</button>
-        <button class="btn danger" data-res-state="Cancelada">CANCELAR</button>
-      </div>
-      <label class="field"><span>Estado del servicio</span><select id="serviceState">
-        ${['Pendiente','Llegó','Sentada','En servicio','Completada','No se presentó'].map(s=>`<option ${s===(r.serviceState||'Pendiente')?'selected':''}>${esc(s)}</option>`).join('')}
-      </select></label>
-      <button id="saveServiceState" class="btn secondary" type="button">GUARDAR ESTADO DE SERVICIO</button>
-      ${(r.email && /^(confirmada|denegada)$/i.test(r.state||''))?`<button id="resendReservationEmail" class="btn secondary" type="button">REENVIAR CORREO AL CLIENTE</button>`:''}
-      <div id="reservationActionStatus" style="margin-top:10px"></div>
-    `);
-    document.getElementById('editReservation').addEventListener('click',()=>openReservationEditor(r));
-    document.getElementById('previewReservation').addEventListener('click',()=>openTicketPreview(reservationTicket(r)));
-    modalContent.querySelectorAll('[data-res-state]').forEach(btn=>btn.addEventListener('click',()=>changeReservationState(r,btn.dataset.resState)));
-    document.getElementById('saveServiceState').addEventListener('click',()=>saveReservationService(r,document.getElementById('serviceState').value));
-    const resend = document.getElementById('resendReservationEmail');
-    if(resend) resend.addEventListener('click',()=>reservationAction(r,{state:r.state,sendEmail:true,forceEmail:true},'Correo reenviado'));
-  }
-
-  async function changeReservationState(r,newState){
-    let sendEmail = false;
-    if((newState==='Confirmada' || newState==='Denegada') && r.email){
-      sendEmail = confirm(`¿Quieres enviar al cliente el correo de ${newState==='Confirmada'?'confirmación':'denegación'}?\n\nAceptar = enviar correo\nCancelar = cambiar estado sin correo`);
-    }
-    if(!confirm(`¿Cambiar la reserva de ${r.name} a “${newState}”?`)) return;
-    await reservationAction(r,{state:newState,sendEmail},`Reserva: ${newState}`);
-  }
-
-  async function saveReservationService(r,serviceState){
-    if(!confirm(`¿Cambiar el estado del servicio a “${serviceState}”?`)) return;
-    await reservationAction(r,{serviceState},`Servicio: ${serviceState}`);
-  }
-
-  async function reservationAction(r,payload,successText){
-    const status = document.getElementById('reservationActionStatus');
-    if(status) status.innerHTML = loader('Guardando…');
-    try{
-      await post('reservationAction',Object.assign({id:r.id},payload));
-      toast(successText || 'Reserva actualizada');
-      await closeModal();
-      renderReservations(r.date || todayIso());
-    }catch(err){
-      if(status) status.innerHTML = errorBox(err.message);
-      else alert(err.message);
-    }
-  }
-
-  function openReservationEditor(r){
-    openModal(`${modalHeader('Editar reserva',r.name || 'Reserva')}
-      <label class="field"><span>Nombre</span><input id="erName" value="${esc(r.name)}"></label>
-      <div class="inline-fields"><label class="field"><span>Fecha</span><input id="erDate" type="date" value="${esc(r.date)}"></label><label class="field"><span>Hora</span><input id="erTime" type="time" value="${esc(r.time)}"></label></div>
-      <div class="inline-fields"><label class="field"><span>Personas</span><input id="erPeople" type="number" min="1" max="30" value="${Number(r.people||1)}"></label><label class="field"><span>Mesa</span><input id="erTable" value="${esc(r.table)}"></label></div>
-      <label class="field"><span>Zona</span><select id="erZone">${['Sin asignar','Interior','Terraza'].map(z=>`<option ${z===(r.zone||'Sin asignar')?'selected':''}>${z}</option>`).join('')}</select></label>
-      <label class="field"><span>Teléfono</span><input id="erPhone" type="tel" value="${esc(r.phone)}"></label>
-      <label class="field"><span>Correo</span><input id="erEmail" type="email" value="${esc(r.email)}"></label>
-      <label class="field"><span>Observaciones</span><textarea id="erNotes">${esc(r.notes)}</textarea></label>
-      <button id="saveReservationEdit" class="btn" type="button">GUARDAR CAMBIOS</button>
-      <div id="reservationEditStatus" style="margin-top:10px"></div>
-    `);
-    document.getElementById('saveReservationEdit').addEventListener('click',async()=>{
-      const button = document.getElementById('saveReservationEdit');
-      const status=document.getElementById('reservationEditStatus');
-      const targetDate = val(document.getElementById('erDate').value) || r.date || todayIso();
-      button.disabled=true;
-      status.innerHTML=loader('Guardando…');
-      try{
-        await post('reservationFullUpdate',{
-          id:r.id,
-          name:val(document.getElementById('erName').value),
-          date:targetDate,
-          time:val(document.getElementById('erTime').value),
-          people:Number(document.getElementById('erPeople').value)||1,
-          table:val(document.getElementById('erTable').value),
-          zone:val(document.getElementById('erZone').value),
-          phone:val(document.getElementById('erPhone').value),
-          email:val(document.getElementById('erEmail').value),
-          notes:val(document.getElementById('erNotes').value)
-        });
-        toast('Reserva actualizada');
-        await closeModal();
-        renderReservations(targetDate);
-      }catch(err){
-        button.disabled=false;
-        status.innerHTML=errorBox(err.message);
-      }
-    });
-  }
-
-  function openNewReservation(){
-    openModal(`${modalHeader('Reservas','Nueva reserva')}
-      <label class="field"><span>Nombre *</span><input id="nrName"></label>
-      <div class="inline-fields"><label class="field"><span>Fecha *</span><input id="nrDate" type="date" value="${todayIso()}"></label><label class="field"><span>Hora *</span><input id="nrTime" type="time" value="14:00"></label></div>
-      <div class="inline-fields"><label class="field"><span>Personas *</span><input id="nrPeople" type="number" min="1" max="30" value="2"></label><label class="field"><span>Mesa</span><input id="nrTable"></label></div>
-      <label class="field"><span>Zona</span><select id="nrZone"><option>Sin asignar</option><option>Interior</option><option>Terraza</option></select></label>
-      <label class="field"><span>Teléfono *</span><input id="nrPhone" type="tel"></label>
-      <label class="field"><span>Correo</span><input id="nrEmail" type="email"></label>
-      <label class="field"><span>Estado inicial</span><select id="nrState"><option>Confirmada</option><option>Pendiente</option></select></label>
-      <label class="field"><span>Observaciones</span><textarea id="nrNotes"></textarea></label>
-      <button id="createReservationButton" class="btn" type="button">GUARDAR RESERVA</button>
-      <div id="newReservationStatus" style="margin-top:10px"></div>
-    `);
-    document.getElementById('createReservationButton').addEventListener('click',async()=>{
-      const status=document.getElementById('newReservationStatus');
-      const button=document.getElementById('createReservationButton');
-      const body={
-        nombre:val(document.getElementById('nrName').value),
-        telefono:val(document.getElementById('nrPhone').value),
-        correo:val(document.getElementById('nrEmail').value),
-        fecha:val(document.getElementById('nrDate').value),
-        hora:val(document.getElementById('nrTime').value),
-        personas:Number(document.getElementById('nrPeople').value)||1,
-        mesa:val(document.getElementById('nrTable').value),
-        zona:val(document.getElementById('nrZone').value),
-        observaciones:val(document.getElementById('nrNotes').value)
-      };
-      if(!body.nombre||!body.telefono||!body.fecha||!body.hora){
-        status.innerHTML=errorBox('Nombre, teléfono, fecha y hora son obligatorios.');
-        return;
-      }
-      button.disabled=true;
-      status.innerHTML=loader('Guardando…');
-      try{
-        const res=await post('reservationCreate',body);
-        const wanted=val(document.getElementById('nrState').value);
-        if(wanted==='Pendiente') await post('reservationAction',{id:res.id,state:'Pendiente'});
-        toast('Reserva creada');
-        await closeModal();
-        renderReservations(body.fecha);
-      }catch(err){
-        button.disabled=false;
-        status.innerHTML=errorBox(err.message);
-      }
-    });
-  }
-
-  function reservationTicket(r){
-    const body = [
-      `${r.date || ''}  ${r.time || ''}`,
-      '',
-      String(r.name || '').toUpperCase(),
-      `${Number(r.people||0)} PERSONAS`,
-      r.table ? `Mesa: ${r.table}` : '',
-      r.zone && r.zone!=='Sin asignar' ? `Zona: ${r.zone}` : '',
-      r.phone ? `Tel: ${r.phone}` : '',
-      r.notes ? `\nOBSERVACIONES\n${r.notes}` : '',
-      `\n${r.id || ''}`
-    ].filter(Boolean).join('\n');
-    return {title:'MESÓN O FARO',subtitle:'RESERVA',body,qr:'',code:r.id||'',type:'Reserva'};
-  }
-
-  async function renderWebSections(){
-    if(!requireAuth()) return;
-    page('Gestión web', `<section class="hero"><div class="kicker">Contenido conectado</div><h1>Gestión web</h1><p class="lead">Los cambios se guardan en Google Sheets y alimentan la web pública.</p></section><div id="webSections">${loader('Cargando apartados…')}</div>`);
-    try{
-      const res=await post('webSections');
-      const items=res.items||[];
-      document.getElementById('webSections').innerHTML=`<div class="grid two">${items.map(s=>`<button class="module-card" data-web-section="${esc(s.key)}"><strong>${esc(s.title)}</strong><small>${esc(s.description||'')}</small></button>`).join('')}</div>`;
-      app.querySelectorAll('[data-web-section]').forEach(btn=>btn.addEventListener('click',()=>renderWebSection(btn.dataset.webSection)));
-    }catch(err){
-      document.getElementById('webSections').innerHTML=errorBox(err.message);
-    }
-  }
-
-  async function renderWebSection(section){
-    page('Gestión web', `<div class="section-head"><button id="backWeb" class="link-button">‹ APARTADOS</button></div><div id="webSectionContent">${loader('Cargando datos…')}</div>`);
-    document.getElementById('backWeb').addEventListener('click',renderWebSections);
-    try{
-      const res=await post('webSectionRows',{section});
-      const rows=res.rows||[];
-      const fields=res.fields||[];
-      const content=document.getElementById('webSectionContent');
-      content.innerHTML=`<section class="hero"><div class="kicker">${esc(res.title)}</div><h1>${esc(res.title)}</h1><p class="lead">${rows.length} registros</p></section>
-        ${res.allowAdd?`<button id="addWebRow" class="btn" type="button">+ AÑADIR</button>`:''}
-        <div id="webRowList" style="margin-top:12px">${rows.length?rows.map((row,i)=>webRowCard(row,fields,res.idKey,i)).join(''):`<div class="empty">No hay registros.</div>`}</div>`;
-      const openEditor=(row,index)=>openWebRowEditor(section,res,row,fields,index);
-      content.querySelectorAll('[data-web-row]').forEach(btn=>btn.addEventListener('click',()=>openEditor(rows[Number(btn.dataset.webRow)],Number(btn.dataset.webRow))));
-      const add=document.getElementById('addWebRow');
-      if(add) add.addEventListener('click',()=>openEditor({},-1));
-    }catch(err){
-      document.getElementById('webSectionContent').innerHTML=errorBox(err.message);
-    }
-  }
-
-  function webRowCard(row,fields,idKey,index){
-    const displayFields=fields.filter(f=>f.key!==idKey && val(row[f.key])).slice(0,3);
-    const titleField=displayFields[0] || fields.find(f=>f.key!==idKey);
-    const title=titleField ? row[titleField.key] : row[idKey];
-    const meta=displayFields.slice(1).map(f=>`${f.label}: ${row[f.key]}`).join(' · ');
-    return `<article class="card"><div class="card-head"><div><div class="card-title">${esc(title || row[idKey] || 'Nuevo registro')}</div><div class="card-meta">${esc(meta || row[idKey] || '')}</div></div><button class="btn secondary" style="width:auto;min-height:40px" data-web-row="${index}">EDITAR</button></div></article>`;
-  }
-
-  function openWebRowEditor(section,res,row,fields,index){
-    const isNew=index<0;
-    const inputs=fields.map(f=>{
-      const id=`wf_${f.key}`;
-      const value=row[f.key] ?? '';
-      if(f.readOnly && isNew && f.key===res.idKey) return '';
-      if(f.multiline) return `<label class="field"><span>${esc(f.label)}</span><textarea id="${esc(id)}" ${f.readOnly?'readonly':''}>${esc(value)}</textarea></label>`;
-      return `<label class="field"><span>${esc(f.label)}</span><input id="${esc(id)}" ${f.type==='number'?'type="number" step="any"':''} value="${esc(value)}" ${f.readOnly?'readonly':''}></label>`;
-    }).join('');
-    openModal(`${modalHeader(isNew?'Nuevo registro':res.title,isNew?'Añadir':(row[res.idKey]||'Editar'))}${inputs}
-      <button id="saveWebRow" class="btn" type="button">GUARDAR CAMBIOS</button>
-      ${(!isNew && res.allowDelete)?`<button id="deleteWebRow" class="btn danger" type="button">ELIMINAR</button>`:''}
-      <div id="webRowStatus" style="margin-top:10px"></div>`);
-    document.getElementById('saveWebRow').addEventListener('click',async()=>{
-      const values={};
-      fields.forEach(f=>{
-        const input=document.getElementById(`wf_${f.key}`);
-        if(input) values[f.key]=input.value;
-      });
-      if(!isNew && row[res.idKey]) values[res.idKey]=row[res.idKey];
-      const status=document.getElementById('webRowStatus');
-      status.innerHTML=loader('Guardando…');
-      try{
-        await post('webSectionSave',{section,values});
-        toast('Cambios guardados');
-        await closeModal();
-        renderWebSection(section);
-      }catch(err){
-        status.innerHTML=errorBox(err.message);
-      }
-    });
-    const del=document.getElementById('deleteWebRow');
-    if(del) del.addEventListener('click',async()=>{
-      if(!confirm(`¿Eliminar definitivamente “${row[res.idKey]}”?`)) return;
-      if(section==='legal' && !confirm('Es un texto legal. ¿Confirmas de nuevo que quieres eliminarlo?')) return;
-      const status=document.getElementById('webRowStatus');
-      status.innerHTML=loader('Eliminando…');
-      try{
-        await post('webSectionDelete',{section,id:row[res.idKey]});
-        toast('Registro eliminado');
-        await closeModal();
-        renderWebSection(section);
-      }catch(err){
-        status.innerHTML=errorBox(err.message);
-      }
-    });
-  }
-
-  function renderParticipations(){
-    if(!requireAuth()) return;
-    page('Participaciones', `
-      <section class="hero"><div class="kicker">Promociones</div><h1>Participaciones</h1><p class="lead">Genera tickets, escanea QR y canjea premios desde el iPhone.</p></section>
-      <section class="card">
-        <h2>Generar</h2>
-        <label class="field"><span>Cantidad</span><input id="participationQty" type="number" min="1" max="20" value="1"></label>
-        <button id="generateParticipation" class="btn" type="button">GENERAR</button>
-        <div id="participationGenerateStatus" style="margin-top:10px"></div>
-        <div id="generatedParticipationList"></div>
-      </section>
-      <section class="card">
-        <h2>Validar y canjear</h2>
-        <button id="openScanner" class="btn" type="button">ESCANEAR QR</button>
-        <label class="field"><span>O escribe el código</span><input id="manualParticipation" placeholder="OF-XXXXX-XXXXX"></label>
-        <button id="validateParticipation" class="btn secondary" type="button">VALIDAR CÓDIGO</button>
-        <div id="participationValidation" style="margin-top:10px"></div>
-      </section>
-    `);
-    document.getElementById('generateParticipation').addEventListener('click',generateParticipations);
-    document.getElementById('openScanner').addEventListener('click',openParticipationScanner);
-    document.getElementById('validateParticipation').addEventListener('click',()=>validateParticipation(val(document.getElementById('manualParticipation').value)));
-  }
-
-  async function generateParticipations(){
-    const qty=Math.max(1,Math.min(20,Number(document.getElementById('participationQty').value)||1));
-    const button=document.getElementById('generateParticipation');
-    const status=document.getElementById('participationGenerateStatus');
-    const list=document.getElementById('generatedParticipationList');
-    button.disabled=true;
-    status.innerHTML=loader(`Generando 0 de ${qty}…`);
-    list.innerHTML='';
-    const made=[];
-    try{
-      for(let i=0;i<qty;i++){
-        const res=await post('participationCreate',{origin:'WebApp iPhone'});
-        made.push(res);
-        status.innerHTML=loader(`Generando ${i+1} de ${qty}…`);
-      }
-      status.innerHTML=`<div class="notice success">Generados ${made.length} códigos.</div>`;
-      list.innerHTML=made.map((p,i)=>`<article class="card" style="margin-top:10px"><div class="card-title">${esc(p.code)}</div><div class="card-meta">${esc(p.createdAt||'')}</div><div class="actions"><button class="btn secondary" data-preview-part="${i}">PREVISUALIZAR</button></div></article>`).join('');
-      list.querySelectorAll('[data-preview-part]').forEach(btn=>btn.addEventListener('click',()=>{
-        const p=made[Number(btn.dataset.previewPart)];
-        openTicketPreview({title:'MESÓN O FARO',subtitle:'PARTICIPACIÓN',body:`${p.code}\n${p.createdAt||''}\n\nEscanea este QR en O Faro\npara validar tu participación.\nConserva este ticket.`,qr:p.qrPayload||`OFARO:${p.code}`,code:p.code,type:'Participación'});
-      }));
-    }catch(err){
-      status.innerHTML=errorBox(err.message);
-    }finally{
-      button.disabled=false;
-    }
-  }
-
-  function openParticipationScanner(){
-    openModal(`${modalHeader('Participaciones','Escanear QR')}<div class="scanner"><div id="reader"></div></div><div id="scannerStatus" class="notice">Autoriza el uso de la cámara cuando Safari lo solicite.</div><label class="field"><span>También puedes elegir una foto del QR</span><input id="qrImageInput" type="file" accept="image/*"></label>`);
-    const status=document.getElementById('scannerStatus');
-    if(typeof Html5Qrcode === 'undefined'){
-      status.className='notice error';
-      status.textContent='El lector QR todavía no ha cargado. Comprueba la conexión a Internet.';
-      return;
-    }
-    state.scanner=new Html5Qrcode('reader');
-    state.scanner.start({facingMode:'environment'},{fps:10,qrbox:{width:230,height:230}},async decoded=>{
-      const code=decoded;
-      try{ await state.scanner.stop(); }catch(_){}
-      state.scanner=null;
-      await closeModal();
-      setRoute('participations');
-      setTimeout(()=>{
-        const input=document.getElementById('manualParticipation');
-        if(input) input.value=code;
-        validateParticipation(code);
-      },50);
-    },()=>{}).catch(()=>{
-      status.className='notice error';
-      status.textContent='No se pudo abrir la cámara. Puedes elegir una foto o introducir el código manualmente.';
-    });
-    document.getElementById('qrImageInput').addEventListener('change',async e=>{
-      const file=e.target.files && e.target.files[0];
-      if(!file||!state.scanner) return;
-      try{
-        try{ await state.scanner.stop(); }catch(_){}
-        const decoded=await state.scanner.scanFile(file,true);
-        state.scanner=null;
-        await closeModal();
-        setRoute('participations');
-        setTimeout(()=>{
-          const input=document.getElementById('manualParticipation');
-          if(input) input.value=decoded;
-          validateParticipation(decoded);
-        },50);
-      }catch(err){
-        status.className='notice error';
-        status.textContent='No pude leer un QR en esa imagen.';
-      }
-    });
-  }
-
-  async function validateParticipation(code){
-    const out=document.getElementById('participationValidation');
-    if(!out) return;
-    if(!code){
-      out.innerHTML=errorBox('Introduce o escanea un código.');
-      return;
-    }
-    out.innerHTML=loader('Validando…');
-    try{
-      const res=await post('participationValidate',{code});
-      const klass=res.state==='Canjeada'?'bad':(res.canRedeem?'ok':'warn');
-      out.innerHTML=`<div class="card"><div class="card-head"><div><div class="card-title">${esc(res.prize || 'Sin premio')}</div><div class="card-meta">${esc(res.code)} · ${esc(res.state)}</div></div><span class="status-pill ${klass}">${esc(res.state)}</span></div>
-        ${res.redeemedAt?`<div class="card-note">Canjeado: ${esc(res.redeemedAt)} · ${esc(res.redeemedBy||'')}</div>`:''}
-        ${res.canRedeem?`<button id="redeemParticipation" class="btn ok" type="button">CANJEAR PREMIO</button>`:''}</div>`;
-      const redeem=document.getElementById('redeemParticipation');
-      if(redeem) redeem.addEventListener('click',async()=>{
-        if(!confirm(`¿Entregar “${res.prize}” y marcar ${res.code} como canjeado? Esta acción no se puede deshacer.`)) return;
-        redeem.disabled=true;
-        try{
-          const done=await post('participationRedeem',{code:res.code});
-          toast(`Canjeado: ${done.prize}`);
-          validateParticipation(res.code);
-        }catch(err){
-          alert(err.message);
-          redeem.disabled=false;
-        }
-      });
-    }catch(err){
-      out.innerHTML=errorBox(err.message);
-    }
-  }
-
-  async function renderTickets(){
-    if(!requireAuth()) return;
-    page('Tickets', `
-      <section class="hero"><div class="kicker">Previsualización</div><h1>Tickets</h1><p class="lead">Puedes ver cómo quedarán sin estar conectado a la térmica. En iPhone, “Imprimir / PDF” abre el sistema de impresión de iOS.</p></section>
-      <section class="card"><h2>Impresión libre</h2><label class="field"><span>Título</span><input id="freeTitle" placeholder="MESÓN O FARO"></label><label class="field"><span>Texto</span><textarea id="freeBody" placeholder="Escribe aquí…"></textarea></label><label class="field"><span>QR opcional</span><input id="freeQr" placeholder="URL o texto"></label><button id="previewFreeTicket" class="btn">PREVISUALIZAR</button></section>
-      <section class="card"><h2>Imagen</h2><p class="lead">Crea un ticket solo con una imagen o úsala arriba/debajo de cualquier ticket.</p><button id="previewImageTicket" class="btn secondary">PREVISUALIZAR IMAGEN</button></section>
-      <div class="section-head"><h2>QR rápidos</h2></div><div id="qrTicketList">${loader('Cargando QR…')}</div>
-      <div class="section-head"><h2>Plantillas</h2></div><div id="templateTicketList">${loader('Cargando plantillas…')}</div>
-    `);
-    document.getElementById('previewFreeTicket').addEventListener('click',()=>openTicketPreview({title:val(document.getElementById('freeTitle').value)||'MESÓN O FARO',subtitle:'',body:val(document.getElementById('freeBody').value),qr:val(document.getElementById('freeQr').value),code:'',type:'Libre'}));
-    document.getElementById('previewImageTicket').addEventListener('click',()=>openTicketPreview({title:'MESÓN O FARO',subtitle:'IMAGEN',body:'',qr:'',code:'',type:'Imagen'}));
-    try{
-      const [qRes,tRes]=await Promise.all([post('qrList'),post('templateList')]);
-      const qs=qRes.items||[];
-      const ts=tRes.items||[];
-      document.getElementById('qrTicketList').innerHTML=qs.length?qs.map((q,i)=>`<article class="card"><div class="card-title">${esc(q.name)}</div><div class="card-meta">${esc(q.ticketText||q.content)}</div><div class="actions"><button class="btn secondary" data-qr-ticket="${i}">PREVISUALIZAR</button></div></article>`).join(''):`<div class="empty">No hay QR activos.</div>`;
-      document.querySelectorAll('[data-qr-ticket]').forEach(btn=>btn.addEventListener('click',()=>{
-        const q=qs[Number(btn.dataset.qrTicket)];
-        openTicketPreview({title:'MESÓN O FARO',subtitle:'',body:q.ticketText||q.name,qr:q.content,code:'',type:'QR'});
-      }));
-      document.getElementById('templateTicketList').innerHTML=ts.length?ts.map((t,i)=>`<article class="card"><div class="card-title">${esc(t.name)}</div><div class="card-meta">${esc(t.type)} · ${esc(t.text||'')}</div><div class="actions"><button class="btn secondary" data-template-ticket="${i}">PREVISUALIZAR</button></div></article>`).join(''):`<div class="empty">No hay plantillas activas.</div>`;
-      document.querySelectorAll('[data-template-ticket]').forEach(btn=>btn.addEventListener('click',()=>{
-        const t=ts[Number(btn.dataset.templateTicket)];
-        const q=t.qr||{};
-        openTicketPreview({title:t.title||'MESÓN O FARO',subtitle:'',body:t.text||'',qr:q.content||'',code:'',type:'Plantilla'});
-      }));
-    }catch(err){
-      document.getElementById('qrTicketList').innerHTML=errorBox(err.message);
-      document.getElementById('templateTicketList').innerHTML=errorBox(err.message);
-    }
-  }
-
-  function openTicketPreview(ticket){
-    state.currentTicket=ticket;
-    state.ticketImageData='';
-    state.ticketImagePosition='top';
-    openModal(`${modalHeader('Ticket','Previsualización')}
-      <div class="ticket-wrap"><div id="ticketPreview" class="ticket"></div></div>
-      <div class="preview-controls card">
-        <label class="field"><span>Imagen opcional</span><input id="ticketImage" type="file" accept="image/*"></label>
-        <img id="ticketImageMini" class="image-preview-mini" alt="Imagen seleccionada">
-        <label class="field"><span>Posición de la imagen</span><select id="ticketImagePosition"><option value="top">Arriba del ticket</option><option value="bottom">Debajo del ticket</option></select></label>
-        <button id="clearTicketImage" class="btn soft" type="button">QUITAR IMAGEN</button>
-      </div>
-      <button id="printTicket" class="btn" type="button">IMPRIMIR / AIRPRINT / PDF</button>
-      <div class="notice" style="margin-top:10px">La previsualización funciona sin impresora. iOS permite imprimir con AirPrint o guardar/compartir como PDF desde la hoja de impresión.</div>`);
-    renderTicketPreview();
-    document.getElementById('ticketImage').addEventListener('change',e=>{
-      const file=e.target.files && e.target.files[0];
-      if(!file) return;
-      const reader=new FileReader();
-      reader.onload=()=>{
-        state.ticketImageData=String(reader.result||'');
-        const mini=document.getElementById('ticketImageMini');
-        mini.src=state.ticketImageData;
-        mini.classList.add('has-image');
-        renderTicketPreview();
-      };
-      reader.readAsDataURL(file);
-    });
-    document.getElementById('ticketImagePosition').addEventListener('change',e=>{
-      state.ticketImagePosition=e.target.value;
-      renderTicketPreview();
-    });
-    document.getElementById('clearTicketImage').addEventListener('click',()=>{
-      state.ticketImageData='';
-      document.getElementById('ticketImage').value='';
-      document.getElementById('ticketImageMini').classList.remove('has-image');
-      renderTicketPreview();
-    });
-    document.getElementById('printTicket').addEventListener('click',printCurrentTicket);
-  }
-
-  function ticketHtml(ticket,includeImage=true){
-    const image = includeImage && state.ticketImageData ? `<img class="ticket-image" src="${esc(state.ticketImageData)}" alt="">` : '';
-    const topImage = state.ticketImagePosition==='top' ? image : '';
-    const bottomImage = state.ticketImagePosition==='bottom' ? image : '';
-    const body=esc(ticket.body||'').replace(/\n/g,'<br>');
-    return `${topImage}<h3>${esc(ticket.title||'MESÓN O FARO')}</h3>${ticket.subtitle?`<div class="ticket-sub">${esc(ticket.subtitle)}</div>`:''}<div class="ticket-rule"></div>${body?`<div class="ticket-body">${body}</div>`:''}${ticket.code?`<div class="ticket-code">${esc(ticket.code)}</div>`:''}${ticket.qr?`<div class="qr-box" data-qr="${esc(ticket.qr)}"></div>`:''}${bottomImage}<div class="ticket-rule"></div><div class="ticket-center">MESÓN O FARO</div>`;
-  }
-
-  function renderTicketPreview(){
-    const el=document.getElementById('ticketPreview');
-    if(!el||!state.currentTicket) return;
-    el.innerHTML=ticketHtml(state.currentTicket,true);
-    renderQrElements(el);
-  }
-
-  function renderQrElements(root){
-    root.querySelectorAll('[data-qr]').forEach(node=>{
-      if(typeof QRCode==='undefined'){
-        node.textContent='[QR]';
-        return;
-      }
-      node.innerHTML='';
-      try{
-        new QRCode(node,{text:node.dataset.qr,width:210,height:210,correctLevel:QRCode.CorrectLevel.M});
-      }catch(_){
-        node.textContent='[QR]';
-      }
-    });
-  }
-
-  function printCurrentTicket(){
-    if(!state.currentTicket) return;
-    let includeImage=false;
-    if(state.ticketImageData){
-      includeImage=confirm(`Has seleccionado una imagen para colocar ${state.ticketImagePosition==='top'?'ARRIBA':'DEBAJO'} del ticket.\n\n¿Quieres incluirla en esta impresión?`);
-    }else if(!confirm('No has seleccionado ninguna imagen. ¿Quieres continuar e imprimir el ticket sin imagen?')){
-      return;
-    }
-    printRoot.innerHTML=`<div class="ticket-wrap"><div class="ticket">${ticketHtml(state.currentTicket,includeImage)}</div></div>`;
-    renderQrElements(printRoot);
-    printRoot.setAttribute('aria-hidden','false');
-    setTimeout(()=>{
-      window.print();
-      setTimeout(()=>{
-        printRoot.innerHTML='';
-        printRoot.setAttribute('aria-hidden','true');
-      },800);
-    },180);
-  }
-
-  async function renderHistory(){
-    if(!requireAuth()) return;
-    page('Historial', `<section class="hero"><div class="kicker">Actividad</div><h1>Historial</h1></section><div id="historyList">${loader('Cargando movimientos…')}</div>`);
-    try{
-      const res=await post('historyList',{limit:100});
-      const items=res.items||[];
-      document.getElementById('historyList').innerHTML=items.length?items.map(h=>`<article class="card"><div class="card-title">${esc(h.type||'Acción')} · ${esc(h.action||'')}</div><div class="card-meta">${esc(h.date||'')} · ${esc(h.reference||'')}</div>${h.detail?`<div class="card-note">${esc(h.detail)}</div>`:''}<div class="card-meta">${esc(h.terminal||'')} ${h.state?`· ${esc(h.state)}`:''}</div></article>`).join(''):`<div class="empty">No hay movimientos todavía.</div>`;
-    }catch(err){
-      document.getElementById('historyList').innerHTML=errorBox(err.message);
-    }
-  }
-
-  function renderSettings(){
-    if(!requireAuth()) return;
-    page('Ajustes', `<section class="hero"><div class="kicker">Este dispositivo</div><h1>Ajustes</h1><p class="lead">La clave se almacena en el navegador de este iPhone y no forma parte del código público.</p></section>
-      <section class="card"><label class="field"><span>Nombre del terminal</span><input id="settingsTerminal" value="${esc(state.terminal)}"></label><label class="field"><span>Clave app gestión</span><input id="settingsKey" type="password" value="${esc(state.key)}"></label><label class="field"><span>Endpoint</span><input value="${esc(API_URL)}" readonly></label><button id="saveSettings" class="btn">GUARDAR</button><button id="testSettings" class="btn secondary">PROBAR CONEXIÓN</button><button id="logoutSettings" class="btn danger">CERRAR SESIÓN EN ESTE IPHONE</button><div id="settingsStatus" style="margin-top:10px"></div></section>
-      <section class="card"><h2>Instalar como app</h2><p class="lead">En Safari pulsa <strong>Compartir</strong> y después <strong>Añadir a pantalla de inicio</strong>. Se abrirá a pantalla completa como una aplicación.</p></section>
-      <section class="card"><h2>Impresión en iPhone</h2><p class="lead">La webapp puede previsualizar todos los tickets y abrir AirPrint/PDF. La conexión ESC/POS directa al puerto 9100 sigue requiriendo la APK Android.</p></section>`);
-    document.getElementById('saveSettings').addEventListener('click',()=>{
-      state.terminal=val(document.getElementById('settingsTerminal').value)||'iPhone O Faro';
-      state.key=val(document.getElementById('settingsKey').value);
-      localStorage.setItem(STORAGE_TERMINAL,state.terminal);
-      localStorage.setItem(STORAGE_KEY,state.key);
-      toast('Ajustes guardados');
-    });
-    document.getElementById('testSettings').addEventListener('click',async()=>{
-      const status=document.getElementById('settingsStatus');
-      status.innerHTML=loader('Probando…');
-      const key=val(document.getElementById('settingsKey').value);
-      const terminal=val(document.getElementById('settingsTerminal').value)||'iPhone O Faro';
-      try{
-        const res=await testConnection(key,terminal);
-        status.innerHTML=`<div class="notice success">${esc(res.message||'Conexión correcta')}</div>`;
-      }catch(err){
-        status.innerHTML=errorBox(err.message);
-      }
-    });
-    document.getElementById('logoutSettings').addEventListener('click',()=>{
-      if(!confirm('¿Eliminar la clave guardada de este iPhone?')) return;
-      localStorage.removeItem(STORAGE_KEY);
-      state.key='';
-      bottomNav.hidden=true;
-      renderLogin();
-    });
-  }
-
-  bottomNav.addEventListener('click',event=>{
-    const btn=event.target.closest('[data-route]');
-    if(btn) setRoute(btn.dataset.route);
-  });
-  homeButton.addEventListener('click',()=>setRoute('home'));
-  modal.addEventListener('click',event=>{
-    if(event.target.closest('[data-close-modal]')) closeModal();
-  });
-  document.addEventListener('keydown',event=>{
-    if(event.key==='Escape' && !modal.hidden) closeModal();
-  });
-
-  if('serviceWorker' in navigator){
-    window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));
-  }
-
-  if(state.key){
-    bottomNav.hidden=false;
-    testConnection().then(()=>setRoute('home')).catch(()=>renderLogin());
-  }else{
-    renderLogin();
-  }
+window.addEventListener('online',()=>state.online=true);window.addEventListener('offline',()=>state.online=false);
+if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').then(reg=>reg.update()).catch(()=>{}));}
+if(state.key){bottomNav.hidden=false;setRoute('home');}else renderLogin();
 })();
