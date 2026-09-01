@@ -1,50 +1,49 @@
 (function(){
-  const fallbackById = {
-    C002:'Huevo, Pescado',
-    C004:'Gluten, Leche, Huevo',
-    C005:'Gluten, Leche, Huevo',
-    C007:'Huevo',
-    C009:'Huevo',
-    C010:'Crustáceos',
-    C011:'Leche',
-    C012:'Leche',
-    C014:'Leche',
-    C015:'Leche',
-    C016:'Gluten, Huevo',
-    C017:'Pescado, Gluten',
-    C018:'Moluscos',
-    C019:'Crustáceos',
-    C020:'Crustáceos',
-    C021:'Moluscos',
-    C022:'Pescado',
-    C023:'Moluscos, Gluten',
-    C024:'Moluscos',
-    C025:'Moluscos, Gluten',
-    C026:'Moluscos, Gluten',
-    C027:'Moluscos'
-  };
-
   if(!window.OfaroFastData || typeof window.OfaroFastData.loadCarta !== 'function') return;
 
+  const cfg = window.OFARO_CONFIG || {};
+  const apiUrl = String(cfg.apiUrl || '').trim();
   const originalLoadCarta = window.OfaroFastData.loadCarta.bind(window.OfaroFastData);
 
-  window.OfaroFastData.loadCarta = async function(force){
-    const data = await originalLoadCarta(force);
-    if(data && Array.isArray(data.carta)){
-      data.carta = data.carta.map(function(item){
-        if(!item) return item;
-        const current = String(item.alergenos == null ? '' : item.alergenos).trim();
-        if(current) return item;
-        const fallback = fallbackById[String(item.id || '').trim()] || '';
-        return Object.assign({}, item, {alergenos:fallback});
+  async function loadLive(){
+    if(!apiUrl) throw new Error('Falta apiUrl');
+    const controller = typeof AbortController === 'function' ? new AbortController() : null;
+    const timer = setTimeout(()=>{ try{ controller && controller.abort(); }catch(_){} }, 8000);
+    try{
+      const res = await fetch(apiUrl + '?action=public&_=' + Date.now(), {
+        cache:'no-store',
+        signal:controller ? controller.signal : undefined
       });
+      if(!res.ok) throw new Error('HTTP ' + res.status);
+      const data = await res.json();
+      if(!data || !Array.isArray(data.carta)) throw new Error('Formato inválido');
+      return {
+        carta:data.carta.map(item=>Object.assign({},item,{
+          alergenos:String(item && item.alergenos == null ? '' : item.alergenos).trim()
+        })),
+        config:data.config || {incrementoTerraza:0.20},
+        source:'api-live'
+      };
+    } finally {
+      clearTimeout(timer);
     }
-    return data;
+  }
+
+  window.OfaroFastData.loadCarta = async function(force){
+    try{
+      return await loadLive();
+    }catch(_){
+      const data = await originalLoadCarta(force);
+      if(data && Array.isArray(data.carta)){
+        data.carta = data.carta.map(item=>Object.assign({},item,{
+          alergenos:String(item && item.alergenos == null ? '' : item.alergenos).trim()
+        }));
+      }
+      return data;
+    }
   };
 
   try{
-    if(window.OfaroFastData && typeof window.OfaroFastData.clearCache === 'function'){
-      window.OfaroFastData.clearCache();
-    }
+    if(typeof window.OfaroFastData.clearCache === 'function') window.OfaroFastData.clearCache();
   }catch(_){}
 })();
