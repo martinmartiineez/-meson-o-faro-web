@@ -1,6 +1,7 @@
 (function(){
   const cfg = window.OFARO_CONFIG || {};
   const spreadsheetId = String(cfg.spreadsheetId || '').trim();
+  let images = [];
 
   function norm(value){
     return String(value == null ? '' : value)
@@ -12,6 +13,20 @@
 
   function active(value){
     return !['no','false','0',''].includes(norm(value));
+  }
+
+  function ensureStyles(){
+    if(document.getElementById('ofaro-carta-images-style')) return;
+    const style = document.createElement('style');
+    style.id = 'ofaro-carta-images-style';
+    style.textContent = `
+      .menu-item-content{display:flex;align-items:flex-start;gap:13px;min-width:0}
+      .menu-item-copy{min-width:0;flex:1}
+      .menu-item-photo{width:92px;height:92px;flex:0 0 92px;object-fit:cover;border-radius:16px;background:#f3f1ed;border:1px solid #e7e4df}
+      @media(max-width:430px){.menu-item-photo{width:78px;height:78px;flex-basis:78px;border-radius:14px}.menu-item-content{gap:11px}}
+      @media(max-width:360px){.menu-item-photo{width:88px;height:88px;flex-basis:88px}}
+    `;
+    document.head.appendChild(style);
   }
 
   function load(){
@@ -44,7 +59,7 @@
           });
           return out;
         });
-        const images = rows.map(r=>({
+        const list = rows.map(r=>({
           id:r['id'] || '',
           seccion:r['seccion'] || '',
           nombre:r['nombre'] || '',
@@ -53,7 +68,7 @@
           activa:r['activa'],
           orden:Number(r['orden']) || 0
         })).filter(x=>norm(x.seccion)==='carta' && x.url && active(x.activa));
-        done(resolve,images);
+        done(resolve,list);
       };
 
       script.onerror = ()=>done(reject,new Error('No se pudo leer la pestaña Imagenes'));
@@ -70,15 +85,53 @@
     });
   }
 
-  function forProduct(item,images){
-    if(!item || !Array.isArray(images)) return null;
-    const id = norm(item.id);
-    const name = norm(item.producto);
-    return images.find(img=>{
-      const ref = norm(img.nombre);
-      return ref === id || ref === name || ref.includes(id) || ref.includes(name);
-    }) || null;
+  function findForProduct(productName){
+    const name = norm(productName);
+    if(!name) return null;
+    return images.find(item=>norm(item.nombre)===name || norm(item.alt)===name) || null;
   }
 
-  window.OfaroCartaImages = {load,forProduct};
+  function decorate(){
+    if(!images.length) return;
+    document.querySelectorAll('.menu-item').forEach(row=>{
+      if(row.querySelector('.menu-item-photo')) return;
+      const title = row.querySelector('h4');
+      if(!title) return;
+      const item = findForProduct(title.textContent);
+      if(!item) return;
+
+      const copy = row.firstElementChild;
+      if(!copy || copy.classList.contains('menu-prices')) return;
+      copy.classList.add('menu-item-copy');
+
+      const wrapper = document.createElement('div');
+      wrapper.className = 'menu-item-content';
+      const img = document.createElement('img');
+      img.className = 'menu-item-photo';
+      img.src = item.url;
+      img.alt = item.alt || title.textContent || 'Plato de Mesón O Faro';
+      img.loading = 'lazy';
+      img.decoding = 'async';
+
+      row.insertBefore(wrapper,copy);
+      wrapper.appendChild(img);
+      wrapper.appendChild(copy);
+    });
+  }
+
+  async function init(){
+    ensureStyles();
+    try{ images = await load(); }
+    catch(err){ console.warn('O Faro: no se pudieron cargar las fotos de la carta.',err); images = []; }
+    decorate();
+    const container = document.getElementById('menuSections');
+    if(container){
+      new MutationObserver(()=>decorate()).observe(container,{childList:true,subtree:true});
+    }
+  }
+
+  window.OfaroCartaImages = {load:()=>Promise.resolve(images.length ? images : load()),refresh:async()=>{images=await load();decorate();return images;}};
+
+  if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded',init,{once:true});
+  else init();
 })();
