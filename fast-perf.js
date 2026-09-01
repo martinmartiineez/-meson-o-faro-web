@@ -3,21 +3,16 @@
   if(!fast) return;
 
   const MAX_STALE_MS = 7 * 24 * 60 * 60 * 1000;
-  const CARTA_CACHE_KEY = 'ofaro-fast-carta-v4';
+  const CARTA_CACHE_KEY = 'ofaro-fast-carta-v5';
   const CACHE_SCHEMA_KEY = 'ofaro-fast-carta-schema';
-  const CACHE_SCHEMA = 'sheet-allergens-v2';
+  const CACHE_SCHEMA = 'api-allergens-v1';
 
-  /* Los alérgenos de Google Sheets son la única fuente de verdad.
-     Una celda vacía significa "no mostrar alérgenos". */
   function decorate(data){
     if(!data || !Array.isArray(data.carta)) return data;
     return Object.assign({},data,{
-      carta:data.carta.map(item=>{
-        const hasAllergens = item && Object.prototype.hasOwnProperty.call(item,'alergenos');
-        return Object.assign({},item,{
-          alergenos:hasAllergens ? String(item.alergenos == null ? '' : item.alergenos).trim() : ''
-        });
-      })
+      carta:data.carta.map(item=>Object.assign({},item,{
+        alergenos:String(item && item.alergenos == null ? '' : item.alergenos).trim()
+      }))
     });
   }
 
@@ -34,10 +29,8 @@
 
   try{
     if(localStorage.getItem(CACHE_SCHEMA_KEY) !== CACHE_SCHEMA){
-      localStorage.removeItem('ofaro-fast-carta-v1');
-      localStorage.removeItem('ofaro-fast-carta-v2');
-      localStorage.removeItem('ofaro-fast-carta-v3');
-      localStorage.removeItem(CARTA_CACHE_KEY);
+      ['ofaro-fast-carta-v1','ofaro-fast-carta-v2','ofaro-fast-carta-v3','ofaro-fast-carta-v4',CARTA_CACHE_KEY]
+        .forEach(k=>localStorage.removeItem(k));
       localStorage.setItem(CACHE_SCHEMA_KEY,CACHE_SCHEMA);
     }
   }catch(_){}
@@ -66,11 +59,8 @@
 
   function schedule(task){
     const run = ()=>{
-      if('requestIdleCallback' in window){
-        requestIdleCallback(()=>task(),{timeout:900});
-      }else{
-        task();
-      }
+      if('requestIdleCallback' in window) requestIdleCallback(()=>task(),{timeout:900});
+      else task();
     };
     setTimeout(run,120);
   }
