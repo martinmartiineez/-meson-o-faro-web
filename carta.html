@@ -48,8 +48,8 @@
 
 <script src="data-config.js?v=20260901-perf3"></script>
 <script src="site-data.js?v=20260901-perf1"></script>
-<script src="fast-data.js?v=20260829-1900"></script>
-<script src="fast-perf.js?v=20260901-perf4"></script>
+<script src="fast-data.js?v=20260901-carta4"></script>
+<script src="fast-perf.js?v=20260901-carta4"></script>
 <script>
 (function(){
   const status = document.getElementById('dataStatus');
@@ -57,7 +57,7 @@
   const sections = document.getElementById('menuSections');
   const footer = document.getElementById('menuFooterNote');
 
-  const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[c]));
+  const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const slug = value => String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'') || 'categoria';
   const money = value => Number(value).toLocaleString('es-ES',{minimumFractionDigits:2,maximumFractionDigits:2}) + ' €';
 
@@ -87,7 +87,6 @@
 
     const activeTab = tabs.find(tab => tab.dataset.target === target.id);
     if(activeTab && updateHash) activeTab.scrollIntoView({behavior:'smooth',block:'nearest',inline:'center'});
-
     if(updateHash && history.replaceState) history.replaceState(null,'','#'+target.id);
   }
 
