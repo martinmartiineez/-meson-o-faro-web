@@ -50,7 +50,7 @@ public class WebAppActivity extends Activity {
         s.setAllowContentAccess(true);
         s.setMediaPlaybackRequiresUserGesture(false);
         s.setCacheMode(WebSettings.LOAD_DEFAULT);
-        s.setUserAgentString(s.getUserAgentString() + " OFaroAndroid/3.0.0");
+        s.setUserAgentString(s.getUserAgentString() + " OFaroAndroid/3.1.0");
 
         CookieManager.getInstance().setAcceptCookie(true);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
@@ -168,7 +168,7 @@ public class WebAppActivity extends Activity {
                         .put("printerPort",core.printerPort())
                         .put("receiverEnabled",core.prefs().getBoolean("printReceiverEnabled",false))
                         .put("terminal",core.terminal())
-                        .put("version","3.0.0")
+                        .put("version","3.1.0")
                         .toString();
             } catch (Exception e) { return "{}"; }
         }
@@ -192,6 +192,18 @@ public class WebAppActivity extends Activity {
             try {
                 core.printTest(core.printerIp(),core.printerPort());
                 return "Ticket de prueba enviado correctamente";
+            } catch (Exception e) {
+                return "Error: " + (e.getMessage() == null ? e.toString() : e.getMessage());
+            }
+        }
+
+        @android.webkit.JavascriptInterface
+        public String printTicket(String jobJson) {
+            try {
+                JSONObject job = new JSONObject(jobJson == null ? "{}" : jobJson);
+                if (!job.has("copies")) job.put("copies",1);
+                RemotePrinter.print(core,job);
+                return "Ticket enviado correctamente a " + core.printerIp() + ":" + core.printerPort();
             } catch (Exception e) {
                 return "Error: " + (e.getMessage() == null ? e.toString() : e.getMessage());
             }
