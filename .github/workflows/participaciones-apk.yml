@@ -41,16 +41,16 @@ jobs:
       - name: Upload workflow artifact
         uses: actions/upload-artifact@v4
         with:
-          name: O-Faro-Gestion-v3.0.0-apk
+          name: O-Faro-Gestion-v3.1.0-apk
           path: android-participaciones/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
 
       - name: Publish APK on development branch
         run: |
           mkdir -p build-artifacts
-          cp android-participaciones/app/build/outputs/apk/debug/app-debug.apk build-artifacts/O-Faro-Gestion-v3.0.0.apk
+          cp android-participaciones/app/build/outputs/apk/debug/app-debug.apk build-artifacts/O-Faro-Gestion-v3.1.0.apk
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add build-artifacts/O-Faro-Gestion-v3.0.0.apk
-          git commit -m "build: O Faro Gestion v3.0.0" || exit 0
+          git add build-artifacts/O-Faro-Gestion-v3.1.0.apk
+          git commit -m "build: O Faro Gestion v3.1.0" || exit 0
           git push origin HEAD:feature/participaciones-apk
