@@ -17,12 +17,12 @@
 
   const WEEKDAYS = ['lunes','martes','miercoles','jueves','viernes','sabado','domingo'];
   const fallbackSchedule = {
-    lunes:{activo:true,comida:['11:00','15:30'],cena:['20:00','22:30'],intervalo:30},
-    martes:{activo:true,comida:['11:00','15:30'],cena:['20:00','22:30'],intervalo:30},
-    miercoles:{activo:true,comida:['11:00','15:30'],cena:['20:00','22:30'],intervalo:30},
-    jueves:{activo:true,comida:['11:00','15:30'],cena:null,intervalo:30},
-    viernes:{activo:true,comida:['11:00','15:30'],cena:['20:00','22:30'],intervalo:30},
-    sabado:{activo:true,comida:['11:00','15:30'],cena:['20:00','22:30'],intervalo:30},
+    lunes:{activo:true,comida:['11:00','15:45'],cena:['20:00','23:00'],intervalo:30},
+    martes:{activo:true,comida:['11:00','15:45'],cena:['20:00','23:00'],intervalo:30},
+    miercoles:{activo:true,comida:['11:00','15:45'],cena:['20:00','23:00'],intervalo:30},
+    jueves:{activo:true,comida:['11:00','15:45'],cena:null,intervalo:30},
+    viernes:{activo:true,comida:['11:00','15:45'],cena:['20:00','23:00'],intervalo:30},
+    sabado:{activo:true,comida:['11:00','15:45'],cena:['20:00','23:00'],intervalo:30},
     domingo:{activo:false,comida:null,cena:null,intervalo:30}
   };
   let schedule = fallbackSchedule;
@@ -71,6 +71,8 @@
     if(a == null || b == null || b < a) return [];
     const slots = [];
     for(let value=a; value<=b; value+=every) slots.push(formatTime(value));
+    const exactEnd = formatTime(b);
+    if(slots[slots.length-1] !== exactEnd) slots.push(exactEnd);
     return slots;
   }
 
