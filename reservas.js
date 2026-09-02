@@ -17,13 +17,13 @@
 
   const WEEKDAYS = ['lunes','martes','miercoles','jueves','viernes','sabado','domingo'];
   const fallbackSchedule = {
-    lunes:{activo:true,comida:['11:00','15:45'],cena:['20:00','23:00'],intervalo:30},
-    martes:{activo:true,comida:['11:00','15:45'],cena:['20:00','23:00'],intervalo:30},
-    miercoles:{activo:true,comida:['11:00','15:45'],cena:['20:00','23:00'],intervalo:30},
-    jueves:{activo:true,comida:['11:00','15:45'],cena:null,intervalo:30},
-    viernes:{activo:true,comida:['11:00','15:45'],cena:['20:00','23:00'],intervalo:30},
-    sabado:{activo:true,comida:['11:00','15:45'],cena:['20:00','23:00'],intervalo:30},
-    domingo:{activo:false,comida:null,cena:null,intervalo:30}
+    lunes:{activo:true,comida:['11:00','15:45'],cena:['20:00','23:00'],intervalo:15},
+    martes:{activo:true,comida:['11:00','15:45'],cena:['20:00','23:00'],intervalo:15},
+    miercoles:{activo:true,comida:['11:00','15:45'],cena:['20:00','23:00'],intervalo:15},
+    jueves:{activo:true,comida:['11:00','15:45'],cena:null,intervalo:15},
+    viernes:{activo:true,comida:['11:00','15:45'],cena:['20:00','23:00'],intervalo:15},
+    sabado:{activo:true,comida:['11:00','15:45'],cena:['20:00','23:00'],intervalo:15},
+    domingo:{activo:false,comida:null,cena:null,intervalo:15}
   };
   let schedule = fallbackSchedule;
   let scheduleReady = false;
@@ -67,12 +67,11 @@
   function slotsBetween(start,end,step){
     const a = parseTime(start);
     const b = parseTime(end);
-    const every = Math.max(5,Number(step) || 30);
+    const every = Math.max(5,Number(step) || 15);
     if(a == null || b == null || b < a) return [];
     const slots = [];
     for(let value=a; value<=b; value+=every) slots.push(formatTime(value));
-    const exactEnd = formatTime(b);
-    if(slots[slots.length-1] !== exactEnd) slots.push(exactEnd);
+    if(slots[slots.length-1] !== formatTime(b)) slots.push(formatTime(b));
     return slots;
   }
 
@@ -173,7 +172,7 @@
             activo:yes(r['activo']),
             comida:foodStart && foodEnd ? [foodStart,foodEnd] : null,
             cena:dinnerStart && dinnerEnd ? [dinnerStart,dinnerEnd] : null,
-            intervalo:Math.max(5,Number(r['intervalo (min)']) || 30)
+            intervalo:Math.max(5,Number(r['intervalo (min)']) || 15)
           };
         });
 
