@@ -6,14 +6,18 @@ import java.net.Socket;
 
 /**
  * Conexión TCP persistente y compartida con la impresora ESC/POS.
- * La impresora puede cerrar conexiones inactivas: este gestor reconecta
- * automáticamente antes del siguiente trabajo sin depender de Apps Script.
+ *
+ * Importante: Socket.isConnected() no garantiza que el otro extremo siga vivo.
+ * Por eso renovamos conexiones antiguas ANTES de iniciar un ticket. Nunca se
+ * reintenta automáticamente un trabajo que ya ha empezado a escribirse para no
+ * provocar tickets duplicados o parciales.
  */
 final class PrinterConnectionManager {
     interface OutputJob { void run(OutputStream out) throws Exception; }
 
     enum State { UNCONFIGURED, CONNECTING, CONNECTED, DISCONNECTED, ERROR }
 
+    private static final long PRE_PRINT_REFRESH_MS = 45_000L;
     private static final PrinterConnectionManager INSTANCE = new PrinterConnectionManager();
     static PrinterConnectionManager get() { return INSTANCE; }
 
@@ -25,12 +29,14 @@ final class PrinterConnectionManager {
     private volatile State state = State.DISCONNECTED;
     private volatile String lastError = "";
     private volatile long connectedAt = 0L;
+    private volatile long lastIoAt = 0L;
 
     private PrinterConnectionManager() {}
 
     State state() { return state; }
     String lastError() { return lastError; }
     long connectedAt() { return connectedAt; }
+    long lastIoAt() { return lastIoAt; }
 
     String statusText() {
         switch (state) {
@@ -45,6 +51,12 @@ final class PrinterConnectionManager {
     boolean isConnected() {
         synchronized (lock) {
             return socketHealthyLocked();
+        }
+    }
+
+    boolean needsRefresh(long maxAgeMs) {
+        synchronized (lock) {
+            return needsRefreshLocked(maxAgeMs);
         }
     }
 
@@ -79,6 +91,7 @@ final class PrinterConnectionManager {
                 state = State.CONNECTED;
                 lastError = "";
                 connectedAt = System.currentTimeMillis();
+                lastIoAt = 0L;
                 return true;
             } catch (Exception e) {
                 lastError = message(e);
@@ -91,12 +104,18 @@ final class PrinterConnectionManager {
 
     void execute(String ip, int printerPort, OutputJob job) throws Exception {
         synchronized (lock) {
+            // Renueva un socket antiguo antes de que empiece a salir el ticket.
+            // Si el trabajo ya ha empezado, NO hacemos reintento automático.
+            if (socketHealthyLocked() && needsRefreshLocked(PRE_PRINT_REFRESH_MS)) {
+                closeLocked();
+            }
             if (!ensureConnected(ip, printerPort)) {
                 throw new Exception(lastError.isEmpty() ? "No se pudo conectar con la impresora" : lastError);
             }
             try {
                 job.run(output);
                 output.flush();
+                lastIoAt = System.currentTimeMillis();
                 state = State.CONNECTED;
                 lastError = "";
             } catch (Exception e) {
@@ -117,6 +136,12 @@ final class PrinterConnectionManager {
         synchronized (lock) { closeLocked(); }
     }
 
+    private boolean needsRefreshLocked(long maxAgeMs) {
+        if (!socketHealthyLocked() || maxAgeMs <= 0) return false;
+        long base = lastIoAt > 0L ? lastIoAt : connectedAt;
+        return base > 0L && System.currentTimeMillis() - base >= maxAgeMs;
+    }
+
     private boolean socketHealthyLocked() {
         return socket != null && output != null && socket.isConnected() && !socket.isClosed() && !socket.isOutputShutdown();
     }
@@ -126,6 +151,7 @@ final class PrinterConnectionManager {
         try { if (socket != null) socket.close(); } catch (Exception ignored) {}
         output = null;
         socket = null;
+        connectedAt = 0L;
         if (state == State.CONNECTED || state == State.CONNECTING) state = State.DISCONNECTED;
     }
 
