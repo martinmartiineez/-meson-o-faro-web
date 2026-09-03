@@ -23,6 +23,7 @@
         <activity android:name=".ManagementActivityV3" android:exported="false" android:screenOrientation="portrait" />
         <activity android:name=".PromotionsActivity" android:exported="false" android:screenOrientation="portrait" />
         <activity android:name=".ReservationsActivity" android:exported="false" android:screenOrientation="portrait" />
+        <activity android:name=".ToolsActivity" android:exported="false" android:screenOrientation="portrait" />
         <activity android:name=".PrinterSettingsActivity" android:exported="false" android:screenOrientation="portrait" />
         <activity android:name=".WebAppActivity" android:exported="false" android:screenOrientation="portrait" />
 
