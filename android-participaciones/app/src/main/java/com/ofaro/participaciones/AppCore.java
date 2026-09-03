@@ -41,7 +41,7 @@ final class AppCore {
 
     private static final Set<String> INTERACTIVE_ACTIONS = new HashSet<>(Arrays.asList(
             "promoPublicIssue","promoPublicPlay","promotionPlay","promotionRedeem",
-            "reservationCreate","reservationUpdate","reservationMarkPrinted",
+            "reservationCreate","reservationUpdate","reservationFullUpdate","reservationMarkPrinted",
             "historyAdd","promotionSave","promotionSetState","promotionDelete",
             "promotionPrizeSave","promotionReplaceSegments","promotionReplacePrizes",
             "webSectionSave","webSectionDelete"
@@ -250,7 +250,7 @@ final class AppCore {
         String phone=r.optString("phone","");if(!phone.isEmpty())body.append("Tel: ").append(phone).append("\n");
         String notes=r.optString("notes","");if(!notes.isEmpty())body.append("\nOBSERVACIONES\n").append(notes).append("\n");
         body.append("\n").append(r.optString("id",""));
-        JSONObject job=basePrintJob().put("templateId","Reserva Premium")
+        JSONObject job=basePrintJob().put("templateId","Reserva Express")
                 .put("title","MESÓN O FARO").put("subtitle","RESERVA")
                 .put("text",body.toString()).put("qr","").put("imagePosition","none");
         RemotePrinter.print(this,job);
