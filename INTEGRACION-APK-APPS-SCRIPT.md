@@ -108,16 +108,14 @@ Está preparado para usar los helpers reales de `GestionInterna`, `LockService` 
 
 ### Integración en `doPost`
 
-Después de `ofaroV2_tryHandlePost(e)` y antes de continuar con los demás módulos, añadir únicamente:
+Después de `ofaroV2_tryHandlePost(e)` y antes de continuar con los demás módulos, añadir exactamente:
 
 ```javascript
-const respuestaReservasAPK = ofaroReservationsV3_tryHandlePost(e);
-if (respuestaReservasAPK) return respuestaReservasAPK;
+const respuestaReservasV3 = ofaroReservationsV3_tryHandlePost(e);
+if (respuestaReservasV3) return respuestaReservasV3;
 ```
 
 No eliminar ni modificar las rutas existentes.
-
-> Antes de publicar, confirmar el nombre exacto de la función router dentro del archivo del repositorio y usar ese nombre. No inventar otro nombre.
 
 ## Publicación segura en Apps Script
 
