@@ -9,11 +9,17 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
+
+concurrency:
+  group: ofaro-android-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -32,25 +38,41 @@ jobs:
           gradle-version: '8.9'
 
       - name: Ensure Android SDK 35
-        run: yes | ${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager "platforms;android-35" "build-tools;35.0.0" >/dev/null
+        run: yes | ${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager "platforms;android-35" "build-tools;35.0.0" >/dev/null || true
+
+      - name: Read app version
+        id: app_version
+        shell: bash
+        run: |
+          VERSION=$(sed -n "s/.*versionName[[:space:]]*['\"]\([^'\"]*\)['\"].*/\1/p" android-participaciones/app/build.gradle | head -n1)
+          if [ -z "$VERSION" ]; then
+            echo "No se pudo leer versionName" >&2
+            exit 1
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Compilando O Faro Gestión v$VERSION"
+
+      - name: Lint Android
+        working-directory: android-participaciones
+        run: gradle :app:lintDebug --stacktrace
 
       - name: Build debug APK
         working-directory: android-participaciones
         run: gradle :app:assembleDebug --stacktrace
 
+      - name: Prepare APK artifact
+        shell: bash
+        run: |
+          mkdir -p dist
+          cp android-participaciones/app/build/outputs/apk/debug/app-debug.apk "dist/O-Faro-Gestion-v${{ steps.app_version.outputs.version }}.apk"
+          sha256sum "dist/O-Faro-Gestion-v${{ steps.app_version.outputs.version }}.apk" | tee dist/SHA256SUMS.txt
+
       - name: Upload workflow artifact
         uses: actions/upload-artifact@v4
         with:
-          name: O-Faro-Gestion-v4.1.0-apk
-          path: android-participaciones/app/build/outputs/apk/debug/app-debug.apk
+          name: O-Faro-Gestion-v${{ steps.app_version.outputs.version }}-apk
+          path: |
+            dist/O-Faro-Gestion-v${{ steps.app_version.outputs.version }}.apk
+            dist/SHA256SUMS.txt
           if-no-files-found: error
-
-      - name: Publish APK on development branch
-        run: |
-          mkdir -p build-artifacts
-          cp android-participaciones/app/build/outputs/apk/debug/app-debug.apk build-artifacts/O-Faro-Gestion-v4.1.0.apk
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add build-artifacts/O-Faro-Gestion-v4.1.0.apk
-          git commit -m "build: O Faro Gestion v4.1.0" || exit 0
-          git push origin HEAD:feature/participaciones-apk
+          retention-days: 30
