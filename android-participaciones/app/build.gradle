@@ -4,6 +4,10 @@ android {
     namespace 'com.ofaro.participaciones'
     compileSdk 35
 
+    buildFeatures {
+        buildConfig true
+    }
+
     defaultConfig {
         applicationId 'com.ofaro.participaciones'
         minSdk 26
