@@ -11,11 +11,13 @@ import android.os.IBinder;
 
 /**
  * Watchdog LOCAL de la impresora. No consulta colas remotas.
- * Mantiene una conexión TCP preparada y reconecta si la impresora/router la cierra.
+ * Mantiene una conexión TCP preparada y renueva periódicamente el socket para
+ * evitar conexiones medio abiertas que Android todavía reporta como conectadas.
  */
 public class PrintReceiverService extends Service {
     private static final String CHANNEL = "ofaro_printer_connection";
     private static final int NOTIFICATION_ID = 3010;
+    private static final long REFRESH_CONNECTION_MS = 45_000L;
     private volatile boolean running;
     private Thread worker;
     private AppCore core;
@@ -42,18 +44,29 @@ public class PrintReceiverService extends Service {
             try {
                 String ip = core.printerIp();
                 int port = core.printerPort();
+                PrinterConnectionManager manager = PrinterConnectionManager.get();
                 if (ip.isEmpty()) {
-                    PrinterConnectionManager.get().close();
+                    manager.close();
                     String text = "Configura la IP de la impresora en Ajustes";
                     if (!text.equals(previous)) { updateNotification(text); previous = text; }
                     sleep(8000); continue;
                 }
-                boolean ok = PrinterConnectionManager.get().ensureConnected(ip,port);
+
+                boolean ok = manager.ensureConnected(ip,port);
+                // Un socket TCP puede seguir devolviendo isConnected()==true aunque
+                // la térmica o el router hayan cerrado el otro extremo. Se renueva
+                // mientras está ocioso, siempre usando el mismo bloqueo que imprime.
+                if (ok && manager.needsRefresh(REFRESH_CONNECTION_MS)) {
+                    manager.reconnect(ip,port);
+                    ok = manager.isConnected();
+                }
+
                 String text = ok ? "Impresora conectada · " + ip + ":" + port : "Reconectando · " + ip + ":" + port;
                 if (!text.equals(previous)) { updateNotification(text); previous = text; }
-                sleep(ok ? 12000 : 3500);
+                sleep(ok ? 10000 : 3500);
             } catch (Exception e) {
                 updateNotification("Reconectando con la impresora…");
+                previous = "";
                 sleep(3500);
             }
         }
