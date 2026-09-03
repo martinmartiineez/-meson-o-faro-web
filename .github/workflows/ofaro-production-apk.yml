@@ -1,0 +1,102 @@
+name: Build O Faro Gestion Production APK
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ofaro-android-production-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  production:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: feature/participaciones-apk
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Gradle 8.9
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      - name: Ensure Android SDK 35
+        run: yes | ${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager "platforms;android-35" "build-tools;35.0.0" >/dev/null || true
+
+      - name: Read app version
+        id: app_version
+        shell: bash
+        run: |
+          VERSION=$(sed -n "s/.*versionName[[:space:]]*['\"]\([^'\"]*\)['\"].*/\1/p" android-participaciones/app/build.gradle | head -n1)
+          CODE=$(sed -n "s/.*versionCode[[:space:]]*\([0-9][0-9]*\).*/\1/p" android-participaciones/app/build.gradle | head -n1)
+          test -n "$VERSION" || { echo "No se pudo leer versionName" >&2; exit 1; }
+          test -n "$CODE" || { echo "No se pudo leer versionCode" >&2; exit 1; }
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "code=$CODE" >> "$GITHUB_OUTPUT"
+          echo "Preparando O Faro Gestión v$VERSION ($CODE)"
+
+      - name: Validate production signing secrets
+        env:
+          KEYSTORE_BASE64: ${{ secrets.OFARO_ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.OFARO_ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.OFARO_ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.OFARO_ANDROID_KEY_PASSWORD }}
+        shell: bash
+        run: |
+          test -n "$KEYSTORE_BASE64" || { echo "Falta OFARO_ANDROID_KEYSTORE_BASE64" >&2; exit 1; }
+          test -n "$KEYSTORE_PASSWORD" || { echo "Falta OFARO_ANDROID_KEYSTORE_PASSWORD" >&2; exit 1; }
+          test -n "$KEY_ALIAS" || { echo "Falta OFARO_ANDROID_KEY_ALIAS" >&2; exit 1; }
+          test -n "$KEY_PASSWORD" || { echo "Falta OFARO_ANDROID_KEY_PASSWORD" >&2; exit 1; }
+          printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/ofaro-release.jks"
+          test -s "$RUNNER_TEMP/ofaro-release.jks" || { echo "El keystore está vacío" >&2; exit 1; }
+
+      - name: Lint and build signed release
+        working-directory: android-participaciones
+        env:
+          OFARO_KEYSTORE_PATH: ${{ runner.temp }}/ofaro-release.jks
+          OFARO_KEYSTORE_PASSWORD: ${{ secrets.OFARO_ANDROID_KEYSTORE_PASSWORD }}
+          OFARO_KEY_ALIAS: ${{ secrets.OFARO_ANDROID_KEY_ALIAS }}
+          OFARO_KEY_PASSWORD: ${{ secrets.OFARO_ANDROID_KEY_PASSWORD }}
+        run: |
+          gradle :app:lintRelease --stacktrace
+          gradle :app:assembleRelease --stacktrace
+
+      - name: Verify APK signature
+        shell: bash
+        run: |
+          APK="android-participaciones/app/build/outputs/apk/release/app-release.apk"
+          test -s "$APK" || { echo "No se generó app-release.apk" >&2; exit 1; }
+          "${ANDROID_HOME}/build-tools/35.0.0/apksigner" verify --verbose --print-certs "$APK"
+
+      - name: Prepare production artifact
+        shell: bash
+        run: |
+          mkdir -p dist
+          SRC="android-participaciones/app/build/outputs/apk/release/app-release.apk"
+          DST="dist/O-Faro-Gestion-PROD-v${{ steps.app_version.outputs.version }}-${{ steps.app_version.outputs.code }}.apk"
+          cp "$SRC" "$DST"
+          sha256sum "$DST" | tee dist/SHA256SUMS.txt
+          "${ANDROID_HOME}/build-tools/35.0.0/apksigner" verify --print-certs "$DST" > dist/SIGNING-CERT.txt
+
+      - name: Upload production APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: O-Faro-Gestion-PROD-v${{ steps.app_version.outputs.version }}-${{ steps.app_version.outputs.code }}
+          path: |
+            dist/O-Faro-Gestion-PROD-v${{ steps.app_version.outputs.version }}-${{ steps.app_version.outputs.code }}.apk
+            dist/SHA256SUMS.txt
+            dist/SIGNING-CERT.txt
+          if-no-files-found: error
+          retention-days: 90
