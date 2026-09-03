@@ -4,254 +4,138 @@ import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.Intent;
 import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
 import android.net.Uri;
 import android.os.Bundle;
+import android.util.Base64;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.ArrayAdapter;
 import android.widget.Button;
+import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
-import android.widget.RadioButton;
-import android.widget.RadioGroup;
 import android.widget.ScrollView;
+import android.widget.SeekBar;
+import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import com.google.zxing.BarcodeFormat;
-import com.google.zxing.MultiFormatWriter;
-import com.google.zxing.common.BitMatrix;
+import org.json.JSONObject;
+
+import java.io.ByteArrayOutputStream;
+import java.io.InputStream;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class TicketPreviewActivity extends Activity {
-    private static final int PICK_IMAGE = 4401;
+    private static final int PICK_IMAGE=4401;
+    private static final String[] TEMPLATES={
+            "Reserva Express","Reserva Elegante","Reserva Completa","Reserva Cliente",
+            "Promoción Premium","Promoción Clásica","Entrada QR","Ruleta QR","Rasca QR",
+            "Premio Canjeable","Vale Regalo","Cupón Descuento","Próxima Visita",
+            "QR Carta","QR Menú","QR WiFi","QR Reseñas","QR Instagram","QR Personalizado",
+            "Promo del Día","Oferta Flash","Evento Especial","Novedad O Faro",
+            "Minimal Premium","Ticket Editorial","Ticket Retro","Texto Libre","Solo Imagen"
+    };
+    private static final String[] TYPO={"O Faro","Editorial","Elegante restaurante","Promocional fuerte","Minimal nórdico","Retro ticket"};
+    private static final String[] PAPERS={"80 mm","58 mm"};
+    private static final String[] QR_SIZES={"S","M","L","XL"};
+    private static final String[] SEPARATORS={"Línea","Puntos","Guiones","Doble","Ninguno"};
+    private static final String[] IMAGE_POS={"No imprimir","Arriba","Abajo"};
+
+    private final ExecutorService io=Executors.newSingleThreadExecutor();
     private AppCore core;
-    private LinearLayout receipt;
-    private RadioGroup imagePosition;
-    private TextView imageStatus;
-    private String imageUri = "";
-    private String title = "";
-    private String subtitle = "";
-    private String body = "";
-    private String qr = "";
-    private String reference = "";
-    private String detail = "";
-    private String reservationId = "";
-    private String participationCode = "";
-    private String type = "Ticket";
+    private EditText title,subtitle,body,qr,copies;
+    private Spinner template,typography,paper,qrSize,separator,imagePosition;
+    private SeekBar imageSize;
+    private TextView imageSizeLabel,printerStatus,status;
+    private ImageView preview;
+    private String imageData="";
+    private String reference="",detail="",reservationId="",participationCode="",type="Ticket";
+    private volatile boolean rendering;
 
-    @Override protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        core = new AppCore(this);
-        Intent in = getIntent();
-        title = value(in, "title");
-        subtitle = value(in, "subtitle");
-        body = value(in, "body");
-        qr = value(in, "qr");
-        reference = value(in, "reference");
-        detail = value(in, "detail");
-        reservationId = value(in, "reservationId");
-        participationCode = value(in, "participationCode");
-        String passedType = value(in, "type");
-        if (!passedType.isEmpty()) type = passedType;
-        imageUri = core.prefs().getString("ticketImageUri", "");
-        setContentView(buildUi());
-        refreshPreview();
+    @Override protected void onCreate(Bundle b){
+        super.onCreate(b);core=new AppCore(this);readIntent();setContentView(build());core.startPrinterWatchdog();refreshPrinterStatus();renderPreview();
     }
+    @Override protected void onDestroy(){io.shutdownNow();super.onDestroy();}
 
-    private String value(Intent i, String key) {
-        String s = i.getStringExtra(key);
-        return s == null ? "" : s;
-    }
+    private void readIntent(){Intent i=getIntent();reference=v(i,"reference");detail=v(i,"detail");reservationId=v(i,"reservationId");participationCode=v(i,"participationCode");String t=v(i,"type");if(!t.isEmpty())type=t;}
+    private String v(Intent i,String k){String s=i.getStringExtra(k);return s==null?"":s;}
 
-    private View buildUi() {
-        LinearLayout root = new LinearLayout(this);
-        root.setOrientation(LinearLayout.VERTICAL);
-        root.setBackgroundColor(Color.rgb(238,238,238));
-        LinearLayout header = new LinearLayout(this);
-        header.setOrientation(LinearLayout.VERTICAL);
-        header.setPadding(dp(20),dp(18),dp(20),dp(16));
-        header.setBackgroundColor(Color.rgb(17,17,17));
-        header.addView(text("MESÓN O FARO",22,Color.WHITE,true));
-        header.addView(text("Previsualización antes de imprimir",14,Color.rgb(210,210,210),false));
-        root.addView(header);
-        ScrollView scroll = new ScrollView(this);
-        LinearLayout box = new LinearLayout(this);
-        box.setOrientation(LinearLayout.VERTICAL);
-        box.setPadding(dp(16),dp(18),dp(16),dp(28));
-        scroll.addView(box);
-        TextView hint = text("Puedes ver el ticket aunque no tengas conexión con la impresora.",14,Color.DKGRAY,false);
-        hint.setPadding(0,0,0,dp(12));
-        box.addView(hint);
-        receipt = new LinearLayout(this);
-        receipt.setOrientation(LinearLayout.VERTICAL);
-        receipt.setGravity(Gravity.CENTER_HORIZONTAL);
-        receipt.setPadding(dp(18),dp(22),dp(18),dp(24));
-        receipt.setBackground(roundRect(Color.WHITE,4,Color.rgb(210,210,210),1));
-        LinearLayout.LayoutParams receiptParams = new LinearLayout.LayoutParams(dp(330),ViewGroup.LayoutParams.WRAP_CONTENT);
-        receiptParams.gravity = Gravity.CENTER_HORIZONTAL;
-        box.addView(receipt,receiptParams);
-        TextView imageTitle = text("Imagen opcional",15,Color.rgb(25,25,25),true);
-        imageTitle.setPadding(0,dp(18),0,dp(6));
-        box.addView(imageTitle);
-        imageStatus = text("",13,Color.DKGRAY,false);
-        box.addView(imageStatus);
-        Button choose = secondaryButton("ELEGIR / CAMBIAR IMAGEN");
-        choose.setOnClickListener(v -> chooseImage());
-        box.addView(choose,marginTop(dp(8)));
-        imagePosition = new RadioGroup(this);
-        imagePosition.setOrientation(RadioGroup.VERTICAL);
-        RadioButton none = radio("NO IMPRIMIR IMAGEN",0);
-        RadioButton top = radio("IMAGEN ARRIBA DEL TICKET",1);
-        RadioButton bottom = radio("IMAGEN DEBAJO DEL TICKET",2);
-        imagePosition.addView(none); imagePosition.addView(top); imagePosition.addView(bottom);
-        none.setChecked(true);
-        imagePosition.setOnCheckedChangeListener((g,id) -> refreshPreview());
-        box.addView(imagePosition,marginTopWrap(dp(10)));
-        Button print = primaryButton("IMPRIMIR");
-        print.setOnClickListener(v -> confirmPrint(print));
-        box.addView(print,marginTop(dp(16)));
-        Button close = secondaryButton("CERRAR");
-        close.setOnClickListener(v -> finish());
-        box.addView(close,marginTop(dp(10)));
-        root.addView(scroll,new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,0,1));
+    private View build(){
+        LinearLayout root=new LinearLayout(this);root.setOrientation(LinearLayout.VERTICAL);root.setBackgroundColor(Color.rgb(244,243,239));
+        LinearLayout head=new LinearLayout(this);head.setOrientation(LinearLayout.VERTICAL);head.setPadding(dp(18),dp(16),dp(18),dp(14));head.setBackgroundColor(Color.rgb(15,15,15));head.addView(txt("O FARO",23,Color.WHITE,true));head.addView(txt("Estudio de impresión · directo ESC/POS",13,Color.LTGRAY,false));root.addView(head);
+        ScrollView scroll=new ScrollView(this);LinearLayout page=new LinearLayout(this);page.setOrientation(LinearLayout.VERTICAL);page.setPadding(dp(14),dp(14),dp(14),dp(30));scroll.addView(page);root.addView(scroll,new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,0,1));
+
+        printerStatus=txt("Impresora…",13,Color.DKGRAY,true);printerStatus.setPadding(dp(12),dp(10),dp(12),dp(10));printerStatus.setBackground(box(Color.WHITE,12,Color.rgb(210,210,210),1));page.addView(printerStatus);
+        preview=new ImageView(this);preview.setAdjustViewBounds(true);preview.setScaleType(ImageView.ScaleType.CENTER_INSIDE);preview.setBackgroundColor(Color.WHITE);LinearLayout.LayoutParams pp=new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,dp(390));pp.topMargin=dp(12);page.addView(preview,pp);
+
+        template=spin(page,"Plantilla",TEMPLATES,defaultTemplate());
+        typography=spin(page,"Tipografía",TYPO,"O Faro");
+        LinearLayout row1=row();LinearLayout a=column();LinearLayout b=column();paper=spinInto(a,"Papel",PAPERS,"80 mm");qrSize=spinInto(b,"Tamaño QR",QR_SIZES,"L");row1.addView(a,weight());row1.addView(b,weight());page.addView(row1);
+        LinearLayout row2=row();LinearLayout c=column();LinearLayout d=column();separator=spinInto(c,"Separador",SEPARATORS,"Línea");imagePosition=spinInto(d,"Imagen",IMAGE_POS,"No imprimir");row2.addView(c,weight());row2.addView(d,weight());page.addView(row2);
+
+        title=field(page,"Título",v(getIntent(),"title"));subtitle=field(page,"Subtítulo",v(getIntent(),"subtitle"));body=multi(page,"Texto",v(getIntent(),"body"),5);qr=field(page,"Contenido QR",v(getIntent(),"qr"));
+        copies=field(page,"Copias","1");copies.setInputType(android.text.InputType.TYPE_CLASS_NUMBER);
+
+        imageSizeLabel=txt("Tamaño imagen · 75%",13,Color.DKGRAY,true);imageSizeLabel.setPadding(0,dp(12),0,0);page.addView(imageSizeLabel);imageSize=new SeekBar(this);imageSize.setMax(75);imageSize.setProgress(50);page.addView(imageSize);
+        Button choose=secondary("ELEGIR / CAMBIAR IMAGEN");choose.setOnClickListener(x->pickImage());page.addView(choose,top(dp(10)));
+        Button remove=secondary("QUITAR IMAGEN");remove.setOnClickListener(x->{imageData="";setSpinner(imagePosition,"No imprimir");renderPreview();});page.addView(remove,top(dp(8)));
+
+        Button print=primary("IMPRIMIR AHORA");print.setOnClickListener(x->confirmPrint(print));page.addView(print,top(dp(16)));
+        Button reconnect=secondary("RECONECTAR IMPRESORA");reconnect.setOnClickListener(x->reconnect(reconnect));page.addView(reconnect,top(dp(9)));
+        Button close=secondary("CERRAR");close.setOnClickListener(x->finish());page.addView(close,top(dp(9)));
+        status=txt("",13,Color.DKGRAY,false);status.setPadding(0,dp(10),0,0);page.addView(status);
+
+        View.OnClickListener change=x->renderPreview();
+        template.setOnItemSelectedListener(listener(this::renderPreview));typography.setOnItemSelectedListener(listener(this::renderPreview));paper.setOnItemSelectedListener(listener(this::renderPreview));qrSize.setOnItemSelectedListener(listener(this::renderPreview));separator.setOnItemSelectedListener(listener(this::renderPreview));imagePosition.setOnItemSelectedListener(listener(this::renderPreview));
+        android.text.TextWatcher watcher=new SimpleWatcher(this::renderPreview);title.addTextChangedListener(watcher);subtitle.addTextChangedListener(watcher);body.addTextChangedListener(watcher);qr.addTextChangedListener(watcher);copies.addTextChangedListener(watcher);
+        imageSize.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener(){public void onProgressChanged(SeekBar s,int p,boolean f){imageSizeLabel.setText("Tamaño imagen · "+(25+p)+"%");renderPreview();}public void onStartTrackingTouch(SeekBar s){}public void onStopTrackingTouch(SeekBar s){}});
         return root;
     }
 
-    private RadioButton radio(String label,int position) {
-        RadioButton b = new RadioButton(this);
-        b.setId(View.generateViewId());
-        b.setText(label);
-        b.setTextSize(14);
-        b.setTextColor(Color.rgb(25,25,25));
-        b.setTag(position);
-        b.setPadding(dp(2),dp(3),dp(2),dp(3));
-        return b;
+    private String defaultTemplate(){String t=type.toLowerCase();if(t.contains("reserva"))return"Reserva Express";if(t.contains("promoc"))return"Promoción Premium";if(t.contains("premio"))return"Premio Canjeable";if(t.contains("qr"))return"QR Personalizado";if(t.contains("imagen"))return"Solo Imagen";return"Minimal Premium";}
+
+    private void renderPreview(){
+        if(preview==null||rendering)return;rendering=true;final JSONObject j=currentJob();io.execute(()->{Bitmap bm=null;try{bm=TicketRenderer.render(j);}catch(Exception ignored){}Bitmap out=bm;runOnUiThread(()->{if(out!=null)preview.setImageBitmap(out);rendering=false;});});
     }
 
-    private int selectedPosition() {
-        int id = imagePosition == null ? -1 : imagePosition.getCheckedRadioButtonId();
-        if (id == -1) return 0;
-        View v = imagePosition.findViewById(id);
-        if (v == null || v.getTag() == null) return 0;
-        return (Integer)v.getTag();
+    private JSONObject currentJob(){
+        JSONObject j=new JSONObject();try{
+            j.put("type",type);j.put("templateId",selected(template));j.put("typography",selected(typography));j.put("paperWidth",selected(paper).startsWith("58")?58:80);j.put("title",text(title));j.put("subtitle",text(subtitle));j.put("text",text(body));j.put("qr",text(qr));j.put("qrSize",selected(qrSize));j.put("separator",sepValue());j.put("imageData",imageData);j.put("imagePosition",posValue());j.put("imageWidthPercent",25+imageSize.getProgress());j.put("copies",clamp(parse(text(copies),1),1,5));j.put("origin","APK nativa");
+        }catch(Exception ignored){}return j;
     }
+    private String sepValue(){String s=selected(separator);if(s.startsWith("Puntos"))return"dots";if(s.startsWith("Guiones"))return"dashes";if(s.startsWith("Doble"))return"double";if(s.startsWith("Ninguno"))return"none";return"line";}
+    private String posValue(){String s=selected(imagePosition);if("Arriba".equals(s))return"top";if("Abajo".equals(s))return"bottom";return"none";}
 
-    private void refreshPreview() {
-        if (receipt == null) return;
-        receipt.removeAllViews();
-        Bitmap image = null;
-        if (!imageUri.trim().isEmpty()) {
-            try { image = core.loadBitmap(imageUri); } catch(Exception ignored) {}
-        }
-        int pos = selectedPosition();
-        imageStatus.setText(image == null ? "No hay imagen seleccionada." : "Imagen seleccionada · elige si se imprime arriba, abajo o no se imprime.");
-        if (image != null && pos == 1) receipt.addView(imageView(image));
-        if (!title.trim().isEmpty()) {
-            TextView t = text(title.toUpperCase(),24,Color.BLACK,true); t.setGravity(Gravity.CENTER); receipt.addView(t);
-        }
-        if (!subtitle.trim().isEmpty()) {
-            TextView s = text(subtitle.toUpperCase(),17,Color.BLACK,true); s.setGravity(Gravity.CENTER); s.setPadding(0,dp(5),0,dp(8)); receipt.addView(s);
-        }
-        if (!title.trim().isEmpty() || !subtitle.trim().isEmpty()) {
-            TextView line = text("--------------------------------",14,Color.BLACK,false); line.setTypeface(Typeface.MONOSPACE); line.setGravity(Gravity.CENTER); receipt.addView(line);
-        }
-        if (!body.trim().isEmpty()) {
-            TextView b = text(body,15,Color.BLACK,false); b.setTypeface(Typeface.MONOSPACE); b.setPadding(0,dp(10),0,dp(8)); b.setTextIsSelectable(true); receipt.addView(b,new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,ViewGroup.LayoutParams.WRAP_CONTENT));
-        }
-        if (!qr.trim().isEmpty()) {
-            try {
-                ImageView q = new ImageView(this); q.setImageBitmap(qrBitmap(qr,520)); q.setAdjustViewBounds(true);
-                LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(dp(210),dp(210)); p.gravity=Gravity.CENTER_HORIZONTAL; p.topMargin=dp(8); receipt.addView(q,p);
-            } catch(Exception e) {
-                TextView q = text("[QR: "+qr+"]",12,Color.BLACK,false); q.setGravity(Gravity.CENTER); receipt.addView(q);
-            }
-        }
-        if (image != null && pos == 2) receipt.addView(imageView(image));
-        if (receipt.getChildCount()==0) {
-            TextView empty = text("Selecciona una imagen para previsualizarla e imprimirla.",15,Color.DKGRAY,false); empty.setGravity(Gravity.CENTER); receipt.addView(empty);
-        }
+    private void confirmPrint(Button b){
+        if(core.printerIp().isEmpty()){alert("Impresora sin configurar","Configura la IP de la impresora en Ajustes.");return;}
+        new AlertDialog.Builder(this).setTitle("Imprimir ticket").setMessage("Se enviará directamente a "+core.printerIp()+":"+core.printerPort()+".\n\nPlantilla: "+selected(template)+"\nCopias: "+clamp(parse(text(copies),1),1,5)).setNegativeButton("Cancelar",null).setPositiveButton("IMPRIMIR",(d,w)->printNow(b)).show();
     }
+    private void printNow(Button b){b.setEnabled(false);status.setText("Imprimiendo…");JSONObject job=currentJob();io.execute(()->{try{RemotePrinter.print(core,job);afterPrint();runOnUiThread(()->{b.setEnabled(true);status.setText("Impresión completada · "+core.printerStatus());Toast.makeText(this,"Ticket impreso",Toast.LENGTH_SHORT).show();refreshPrinterStatus();});}catch(Exception e){runOnUiThread(()->{b.setEnabled(true);status.setText("Error: "+msg(e));refreshPrinterStatus();alert("Error de impresión",msg(e));});}});}
+    private void afterPrint(){if(!core.configured())return;try{core.post(core.action("historyAdd").put("type",type).put("reference",reference).put("event","Impreso desde APK").put("printer","IMP001").put("detail",detail).put("state","OK"));}catch(Exception ignored){}if(!reservationId.isEmpty())try{core.post(core.action("reservationMarkPrinted").put("id",reservationId));}catch(Exception ignored){}if(!participationCode.isEmpty())try{core.post(core.action("participationMarkPrinted").put("code",participationCode));}catch(Exception ignored){} }
 
-    private ImageView imageView(Bitmap bitmap) {
-        ImageView v = new ImageView(this);
-        v.setImageBitmap(bitmap);
-        v.setAdjustViewBounds(true);
-        v.setScaleType(ImageView.ScaleType.CENTER_INSIDE);
-        LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,dp(180));
-        p.bottomMargin=dp(10); p.topMargin=dp(10); v.setLayoutParams(p);
-        return v;
-    }
+    private void reconnect(Button b){b.setEnabled(false);status.setText("Reconectando…");io.execute(()->{core.reconnectPrinter();runOnUiThread(()->{b.setEnabled(true);refreshPrinterStatus();status.setText(core.printerStatus());});});}
+    private void refreshPrinterStatus(){if(printerStatus==null)return;String s=core.printerStatus();printerStatus.setText("IMPRESORA · "+s);printerStatus.setTextColor(core.printerConnected()?Color.rgb(25,110,55):Color.rgb(150,55,40));}
 
-    private Bitmap qrBitmap(String value,int size) throws Exception {
-        BitMatrix matrix = new MultiFormatWriter().encode(value, BarcodeFormat.QR_CODE,size,size);
-        Bitmap bitmap = Bitmap.createBitmap(size,size,Bitmap.Config.ARGB_8888);
-        for(int y=0;y<size;y++) for(int x=0;x<size;x++) bitmap.setPixel(x,y,matrix.get(x,y)?Color.BLACK:Color.WHITE);
-        return bitmap;
-    }
+    private void pickImage(){Intent i=new Intent(Intent.ACTION_OPEN_DOCUMENT);i.addCategory(Intent.CATEGORY_OPENABLE);i.setType("image/*");i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION|Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);startActivityForResult(i,PICK_IMAGE);}
+    @Override protected void onActivityResult(int requestCode,int resultCode,Intent data){super.onActivityResult(requestCode,resultCode,data);if(requestCode==PICK_IMAGE&&resultCode==RESULT_OK&&data!=null&&data.getData()!=null){Uri u=data.getData();try{getContentResolver().takePersistableUriPermission(u,Intent.FLAG_GRANT_READ_URI_PERMISSION);}catch(Exception ignored){}try{imageData=encodeImage(u);setSpinner(imagePosition,"Arriba");renderPreview();}catch(Exception e){alert("Imagen",msg(e));}}}
+    private String encodeImage(Uri uri)throws Exception{try(InputStream in=getContentResolver().openInputStream(uri)){Bitmap b=BitmapFactory.decodeStream(in);if(b==null)throw new Exception("Imagen no compatible");int max=900;float sc=Math.min(1f,max/(float)Math.max(1,b.getWidth()));Bitmap out=sc<1?Bitmap.createScaledBitmap(b,Math.max(1,Math.round(b.getWidth()*sc)),Math.max(1,Math.round(b.getHeight()*sc)),true):b;ByteArrayOutputStream os=new ByteArrayOutputStream();out.compress(Bitmap.CompressFormat.JPEG,82,os);if(out!=b)out.recycle();return"data:image/jpeg;base64,"+Base64.encodeToString(os.toByteArray(),Base64.NO_WRAP);}}
 
-    private void chooseImage() {
-        Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
-        intent.addCategory(Intent.CATEGORY_OPENABLE);
-        intent.setType("image/*");
-        intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION|Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
-        startActivityForResult(intent,PICK_IMAGE);
-    }
+    private Spinner spin(LinearLayout page,String label,String[] values,String selected){TextView l=txt(label,13,Color.DKGRAY,true);l.setPadding(0,dp(10),0,dp(4));page.addView(l);Spinner s=new Spinner(this);s.setAdapter(new ArrayAdapter<>(this,android.R.layout.simple_spinner_dropdown_item,values));page.addView(s,new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,dp(50)));setSpinner(s,selected);return s;}
+    private Spinner spinInto(LinearLayout box,String label,String[] values,String selected){return spin(box,label,values,selected);}
+    private EditText field(LinearLayout page,String label,String value){TextView l=txt(label,13,Color.DKGRAY,true);l.setPadding(0,dp(10),0,dp(4));page.addView(l);EditText e=input(value);e.setSingleLine(true);page.addView(e,new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,dp(52)));return e;}
+    private EditText multi(LinearLayout page,String label,String value,int lines){TextView l=txt(label,13,Color.DKGRAY,true);l.setPadding(0,dp(10),0,dp(4));page.addView(l);EditText e=input(value);e.setSingleLine(false);e.setMinLines(lines);e.setGravity(Gravity.TOP);e.setPadding(dp(12),dp(10),dp(12),dp(10));page.addView(e,new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,ViewGroup.LayoutParams.WRAP_CONTENT));return e;}
+    private EditText input(String v){EditText e=new EditText(this);e.setText(v);e.setTextSize(16);e.setTextColor(Color.rgb(20,20,20));e.setPadding(dp(12),0,dp(12),0);e.setBackground(box(Color.WHITE,11,Color.rgb(205,205,205),1));return e;}
+    private LinearLayout row(){LinearLayout r=new LinearLayout(this);r.setOrientation(LinearLayout.HORIZONTAL);return r;}private LinearLayout column(){LinearLayout c=new LinearLayout(this);c.setOrientation(LinearLayout.VERTICAL);return c;}private LinearLayout.LayoutParams weight(){LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(0,ViewGroup.LayoutParams.WRAP_CONTENT,1);p.setMargins(dp(3),0,dp(3),0);return p;}
+    private Button primary(String s){Button b=new Button(this);b.setText(s);b.setTextColor(Color.WHITE);b.setTypeface(Typeface.DEFAULT,Typeface.BOLD);b.setBackground(box(Color.rgb(15,15,15),12,Color.TRANSPARENT,0));b.setMinHeight(dp(54));return b;}private Button secondary(String s){Button b=new Button(this);b.setText(s);b.setTextColor(Color.rgb(20,20,20));b.setTypeface(Typeface.DEFAULT,Typeface.BOLD);b.setBackground(box(Color.WHITE,12,Color.rgb(190,190,190),1));b.setMinHeight(dp(52));return b;}
+    private TextView txt(String s,int sp,int color,boolean bold){TextView t=new TextView(this);t.setText(s);t.setTextSize(sp);t.setTextColor(color);if(bold)t.setTypeface(Typeface.DEFAULT,Typeface.BOLD);return t;}private GradientDrawable box(int fill,int rad,int stroke,int sw){GradientDrawable d=new GradientDrawable();d.setColor(fill);d.setCornerRadius(dp(rad));if(sw>0)d.setStroke(dp(sw),stroke);return d;}private LinearLayout.LayoutParams top(int v){LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,dp(54));p.topMargin=v;return p;}private int dp(int v){return Math.round(v*getResources().getDisplayMetrics().density);}private String text(EditText e){return e==null?"":e.getText().toString().trim();}private String selected(Spinner s){return s==null||s.getSelectedItem()==null?"":String.valueOf(s.getSelectedItem());}private void setSpinner(Spinner s,String val){if(s==null)return;for(int i=0;i<s.getCount();i++)if(String.valueOf(s.getItemAtPosition(i)).equals(val)){s.setSelection(i);return;}}private int parse(String s,int f){try{return Integer.parseInt(s.trim());}catch(Exception e){return f;}}private int clamp(int n,int min,int max){return Math.max(min,Math.min(max,n));}private String msg(Throwable t){String m=t==null?"Error desconocido":t.getMessage();return m==null||m.trim().isEmpty()?String.valueOf(t):m;}private void alert(String t,String m){if(!isFinishing())new AlertDialog.Builder(this).setTitle(t).setMessage(m).setPositiveButton("Aceptar",null).show();}
 
-    @Override protected void onActivityResult(int requestCode,int resultCode,Intent data) {
-        super.onActivityResult(requestCode,resultCode,data);
-        if(requestCode==PICK_IMAGE && resultCode==RESULT_OK && data!=null && data.getData()!=null) {
-            Uri uri=data.getData();
-            try { getContentResolver().takePersistableUriPermission(uri,Intent.FLAG_GRANT_READ_URI_PERMISSION); } catch(Exception ignored) {}
-            imageUri=uri.toString();
-            core.prefs().edit().putString("ticketImageUri",imageUri).apply();
-            RadioButton top = (RadioButton) imagePosition.getChildAt(1);
-            imagePosition.check(top.getId());
-            refreshPreview();
-        }
-    }
-
-    private void confirmPrint(Button button) {
-        int pos=selectedPosition();
-        boolean hasImage=!imageUri.trim().isEmpty();
-        String imageText = (!hasImage || pos==0) ? "SIN imagen" : (pos==1 ? "con la imagen ARRIBA" : "con la imagen ABAJO");
-        new AlertDialog.Builder(this)
-                .setTitle("Confirmar impresión")
-                .setMessage("Se imprimirá "+imageText+".\n\n¿Continuar?")
-                .setNegativeButton("Cancelar",null)
-                .setPositiveButton("IMPRIMIR",(d,w)->printNow(button,pos))
-                .show();
-    }
-
-    private void printNow(Button button,int pos) {
-        if(core.printerIp().isEmpty()) {
-            alert("Impresora no disponible","La previsualización funciona sin impresora. Para imprimir, configura la IP en Ajustes.");
-            return;
-        }
-        button.setEnabled(false);
-        new Thread(() -> {
-            try {
-                core.printTicket(title,subtitle,body,qr,imageUri,pos);
-                if(core.configured()) {
-                    try { core.post(core.action("historyAdd").put("type",type).put("reference",reference).put("event","Impreso").put("printer","IMP001").put("detail",detail).put("state","OK")); } catch(Exception ignored) {}
-                    if(!reservationId.isEmpty()) try { core.post(core.action("reservationMarkPrinted").put("id",reservationId)); } catch(Exception ignored) {}
-                    if(!participationCode.isEmpty()) try { core.post(core.action("participationMarkPrinted").put("code",participationCode)); } catch(Exception ignored) {}
-                }
-                runOnUiThread(() -> { button.setEnabled(true); Toast.makeText(this,"Impresión enviada",Toast.LENGTH_SHORT).show(); });
-            } catch(Exception e) {
-                runOnUiThread(() -> { button.setEnabled(true); alert("Error de impresión",e.getMessage()==null?String.valueOf(e):e.getMessage()); });
-            }
-        }).start();
-    }
-
-    private TextView text(String value,int sp,int color,boolean bold) { TextView t=new TextView(this); t.setText(value); t.setTextSize(sp); t.setTextColor(color); if(bold)t.setTypeface(Typeface.DEFAULT,Typeface.BOLD); return t; }
-    private Button primaryButton(String label) { Button b=new Button(this); b.setText(label); b.setTextSize(14); b.setTypeface(Typeface.DEFAULT,Typeface.BOLD); b.setTextColor(Color.WHITE); b.setAllCaps(false); b.setBackground(roundRect(Color.rgb(17,17,17),12,Color.TRANSPARENT,0)); b.setMinHeight(dp(54)); return b; }
-    private Button secondaryButton(String label) { Button b=new Button(this); b.setText(label); b.setTextSize(13); b.setTypeface(Typeface.DEFAULT,Typeface.BOLD); b.setTextColor(Color.rgb(20,20,20)); b.setAllCaps(false); b.setBackground(roundRect(Color.WHITE,12,Color.rgb(190,190,190),1)); b.setMinHeight(dp(52)); return b; }
-    private GradientDrawable roundRect(int fill,int radius,int stroke,int strokeWidth) { GradientDrawable d=new GradientDrawable(); d.setColor(fill); d.setCornerRadius(dp(radius)); if(strokeWidth>0)d.setStroke(dp(strokeWidth),stroke); return d; }
-    private LinearLayout.LayoutParams marginTop(int top) { LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,dp(54)); p.topMargin=top; return p; }
-    private LinearLayout.LayoutParams marginTopWrap(int top) { LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,ViewGroup.LayoutParams.WRAP_CONTENT); p.topMargin=top; return p; }
-    private int dp(int v) { return Math.round(v*getResources().getDisplayMetrics().density); }
-    private void alert(String title,String message) { if(!isFinishing())new AlertDialog.Builder(this).setTitle(title).setMessage(message).setPositiveButton("Aceptar",null).show(); }
+    private android.widget.AdapterView.OnItemSelectedListener listener(Runnable r){return new android.widget.AdapterView.OnItemSelectedListener(){public void onItemSelected(android.widget.AdapterView<?> p,View v,int pos,long id){r.run();}public void onNothingSelected(android.widget.AdapterView<?> p){}};}
+    private static class SimpleWatcher implements android.text.TextWatcher{private final Runnable r;SimpleWatcher(Runnable r){this.r=r;}public void beforeTextChanged(CharSequence s,int st,int c,int a){}public void onTextChanged(CharSequence s,int st,int b,int c){r.run();}public void afterTextChanged(android.text.Editable e){}}
 }
