@@ -15,16 +15,24 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
-import java.net.InetSocketAddress;
-import java.net.Socket;
 import java.net.URL;
 import java.nio.charset.Charset;
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.Set;
 
 final class AppCore {
     static final String PREFS = "ofaro_participaciones";
-    static final String DEFAULT_API = "https://script.google.com/macros/s/AKfycbwyICNMM0CHeSFQqOaO4d6g_d84vougY6OivfrMi6G5DIIVy7Y1qK_v2tBsZKmnQ2njkQ/exec";
-    static final String APP_VERSION = "2.2.0";
-    private static final int MAX_IMAGE_DOTS = 512;
+    static final String DEFAULT_API = ApiEndpoint.URL;
+    static final String APP_VERSION = "4.0.0";
+    private static final int MAX_IMAGE_DOTS = 576;
+    private static final Set<String> SAFE_RETRY_ACTIONS = new HashSet<>(Arrays.asList(
+            "appPing","participationPing","appBootstrap","terminalPing",
+            "reservationList","qrList","templateList","historyList",
+            "webSections","webSectionRows","promotionList","prizeList","promotionStats",
+            "wheelSegmentsList","promotionPrizeLinksList","promotionHistory",
+            "promotionValidate","promoPublicGet","printQueueStatus","printQueueList"
+    ));
 
     private final SharedPreferences prefs;
     private final Context context;
@@ -32,10 +40,21 @@ final class AppCore {
     AppCore(Context context) {
         this.context = context.getApplicationContext();
         prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
+        migrateDefaults();
+    }
+
+    private void migrateDefaults() {
+        String stored = prefs.getString("api", "").trim();
+        if (stored.isEmpty() || stored.contains("AKfycbwyICNMM0CHeSFQqOaO4d6g_d84vougY6OivfrMi6G5DIIVy7Y1qK_v2tBsZKmnQ2njkQ")) {
+            prefs.edit().putString("api", DEFAULT_API).apply();
+        }
     }
 
     SharedPreferences prefs() { return prefs; }
-    String api() { return prefs.getString("api", DEFAULT_API).trim(); }
+    String api() {
+        String value = prefs.getString("api", DEFAULT_API).trim();
+        return value.isEmpty() ? DEFAULT_API : value;
+    }
     String key() { return prefs.getString("key", "").trim(); }
     String terminal() {
         String v = prefs.getString("terminal", "Caja O Faro").trim();
@@ -54,33 +73,53 @@ final class AppCore {
                 .put("printerIp", printerIp());
     }
 
-    JSONObject post(JSONObject body) throws Exception { return postTo(api(), body); }
+    JSONObject post(JSONObject body) throws Exception {
+        String action = body == null ? "" : body.optString("action", "");
+        int attempts = SAFE_RETRY_ACTIONS.contains(action) ? 2 : 1;
+        Exception last = null;
+        for (int i=0; i<attempts; i++) {
+            try { return postTo(api(), body); }
+            catch (Exception e) {
+                last = e;
+                if (i+1 < attempts) try { Thread.sleep(350L); } catch (InterruptedException ie) { Thread.currentThread().interrupt(); break; }
+            }
+        }
+        throw last == null ? new Exception("No se pudo conectar con el servidor") : last;
+    }
 
     JSONObject postTo(String endpoint, JSONObject body) throws Exception {
         if (endpoint == null || endpoint.trim().isEmpty()) throw new Exception("Endpoint vacío.");
-        URL url = new URL(endpoint);
-        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-        conn.setConnectTimeout(12000);
-        conn.setReadTimeout(16000);
-        conn.setInstanceFollowRedirects(true);
-        conn.setRequestMethod("POST");
-        conn.setDoOutput(true);
-        conn.setRequestProperty("Content-Type", "application/json; charset=utf-8");
-        conn.setRequestProperty("Accept", "application/json");
-        byte[] payload = body.toString().getBytes(Charset.forName("UTF-8"));
-        conn.setFixedLengthStreamingMode(payload.length);
-        try (OutputStream os = conn.getOutputStream()) { os.write(payload); }
-        int status = conn.getResponseCode();
-        InputStream stream = status >= 200 && status < 400 ? conn.getInputStream() : conn.getErrorStream();
-        String text = readAll(stream);
-        conn.disconnect();
-        if (text == null || text.trim().isEmpty()) throw new Exception("Respuesta vacía del servidor (HTTP " + status + ").");
-        try { return new JSONObject(text); }
-        catch (Exception e) { throw new Exception("Respuesta no válida: " + text.substring(0, Math.min(text.length(), 180))); }
+        HttpURLConnection conn = null;
+        try {
+            URL url = new URL(endpoint);
+            conn = (HttpURLConnection) url.openConnection();
+            conn.setConnectTimeout(7000);
+            conn.setReadTimeout(25000);
+            conn.setInstanceFollowRedirects(true);
+            conn.setRequestMethod("POST");
+            conn.setDoOutput(true);
+            conn.setUseCaches(false);
+            conn.setRequestProperty("Content-Type", "application/json; charset=utf-8");
+            conn.setRequestProperty("Accept", "application/json,text/plain,*/*");
+            conn.setRequestProperty("User-Agent", "OFaroAndroid/" + APP_VERSION);
+            byte[] payload = (body == null ? "{}" : body.toString()).getBytes(Charset.forName("UTF-8"));
+            conn.setFixedLengthStreamingMode(payload.length);
+            try (OutputStream os = conn.getOutputStream()) { os.write(payload); os.flush(); }
+            int status = conn.getResponseCode();
+            InputStream stream = status >= 200 && status < 400 ? conn.getInputStream() : conn.getErrorStream();
+            String text = readAll(stream);
+            if (text == null || text.trim().isEmpty()) throw new Exception("Respuesta vacía del servidor (HTTP " + status + ").");
+            String trimmed = text.trim();
+            if (trimmed.startsWith("<")) throw new Exception("Google devolvió HTML en lugar de datos. Revisa la implementación de Apps Script.");
+            try { return new JSONObject(trimmed); }
+            catch (Exception e) { throw new Exception("Respuesta no válida: " + trimmed.substring(0, Math.min(trimmed.length(), 180))); }
+        } finally {
+            if (conn != null) conn.disconnect();
+        }
     }
 
     void ensureOk(JSONObject json) throws Exception {
-        if (!json.optBoolean("ok", false)) throw new Exception(json.optString("error", "Operación rechazada"));
+        if (json == null || !json.optBoolean("ok", false)) throw new Exception(json == null ? "Respuesta vacía" : json.optString("error", "Operación rechazada"));
     }
 
     Bitmap loadBitmap(String uriText) throws Exception {
@@ -94,16 +133,26 @@ final class AppCore {
         }
     }
 
+    void startPrinterWatchdog() {
+        if (printerIp().isEmpty()) return;
+        try {
+            android.content.Intent service = new android.content.Intent(context, PrintReceiverService.class);
+            if (android.os.Build.VERSION.SDK_INT >= 26) context.startForegroundService(service); else context.startService(service);
+        } catch (Exception ignored) {}
+    }
+
+    String printerStatus() { return PrinterConnectionManager.get().statusText(); }
+    boolean printerConnected() { return PrinterConnectionManager.get().isConnected(); }
+    void reconnectPrinter() { PrinterConnectionManager.get().reconnect(printerIp(), printerPort()); }
+
     void printTicket(String title, String subtitle, String body, String qrData, String imageUri, int imagePosition) throws Exception {
         Bitmap bitmap = null;
         if (imagePosition != 0 && imageUri != null && !imageUri.trim().isEmpty()) bitmap = loadBitmap(imageUri);
         Bitmap finalBitmap = bitmap;
-        withPrinter(out -> {
+        PrinterConnectionManager.get().execute(printerIp(), printerPort(), out -> {
             escInit(out);
             if (finalBitmap != null && imagePosition == 1) {
-                align(out, 1);
-                writeBitmap(out, finalBitmap);
-                writeText(out, "\n");
+                align(out, 1); writeBitmap(out, finalBitmap); writeText(out, "\n");
             }
             if (!safe(title).isEmpty()) {
                 align(out,1); bold(out,true); doubleSize(out,true);
@@ -111,33 +160,18 @@ final class AppCore {
                 doubleSize(out,false); bold(out,false);
             }
             if (!safe(subtitle).isEmpty()) {
-                align(out,1); bold(out,true);
-                writeText(out, safe(subtitle).toUpperCase() + "\n");
-                bold(out,false);
+                align(out,1); bold(out,true); writeText(out, safe(subtitle).toUpperCase() + "\n"); bold(out,false);
             }
-            if (!safe(title).isEmpty() || !safe(subtitle).isEmpty()) {
-                align(out,1); writeText(out,"------------------------------\n");
-            }
-            if (!safe(body).isEmpty()) {
-                align(out,0); writeText(out,"\n" + body.trim() + "\n");
-            }
-            if (!safe(qrData).isEmpty()) {
-                align(out,1); writeText(out,"\n"); writeQr(out,qrData,7); writeText(out,"\n");
-            }
-            if (finalBitmap != null && imagePosition == 2) {
-                align(out,1); writeText(out,"\n"); writeBitmap(out,finalBitmap); writeText(out,"\n");
-            }
-            writeText(out,"\n\n"); cut(out); out.flush();
+            if (!safe(title).isEmpty() || !safe(subtitle).isEmpty()) { align(out,1); writeText(out,"------------------------------\n"); }
+            if (!safe(body).isEmpty()) { align(out,0); writeText(out,"\n" + body.trim() + "\n"); }
+            if (!safe(qrData).isEmpty()) { align(out,1); writeText(out,"\n"); writeQr(out,qrData,7); writeText(out,"\n"); }
+            if (finalBitmap != null && imagePosition == 2) { align(out,1); writeText(out,"\n"); writeBitmap(out,finalBitmap); writeText(out,"\n"); }
+            writeText(out,"\n\n"); cut(out);
         });
     }
 
-    void printQrTicket(String title, String text, String qrData) throws Exception {
-        printTicket(title,"",text,qrData,"",0);
-    }
-
-    void printFreeText(String title, String text, String qrData) throws Exception {
-        printTicket(title,"",text,qrData,"",0);
-    }
+    void printQrTicket(String title, String text, String qrData) throws Exception { printTicket(title,"",text,qrData,"",0); }
+    void printFreeText(String title, String text, String qrData) throws Exception { printTicket(title,"",text,qrData,"",0); }
 
     void printReservation(JSONObject r) throws Exception {
         StringBuilder body = new StringBuilder();
@@ -154,21 +188,19 @@ final class AppCore {
     }
 
     void printTest(String ip, int port) throws Exception {
-        withPrinter(ip,port,out -> {
-            escInit(out); align(out,1); bold(out,true); writeText(out,"MESON O FARO\n"); bold(out,false);
-            writeText(out,"Prueba impresora ESC/POS\n"+ip+":"+port+"\n\n"); writeQr(out,"OFARO:PRUEBA",6);
-            writeText(out,"\nConexion correcta\n\n\n"); cut(out); out.flush();
-        });
-    }
-
-    private interface PrinterJob { void run(OutputStream out) throws Exception; }
-    private void withPrinter(PrinterJob job) throws Exception { withPrinter(printerIp(),printerPort(),job); }
-    private void withPrinter(String ip, int port, PrinterJob job) throws Exception {
-        if (ip == null || ip.trim().isEmpty()) throw new Exception("IP de impresora no configurada.");
-        try (Socket socket = new Socket()) {
-            socket.connect(new InetSocketAddress(ip.trim(),port),4000); socket.setSoTimeout(7000);
-            try (OutputStream out = socket.getOutputStream()) { job.run(out); }
-        }
+        JSONObject job = new JSONObject()
+                .put("templateId","Minimal Premium")
+                .put("typography","O Faro")
+                .put("paperWidth",80)
+                .put("title","MESÓN O FARO")
+                .put("subtitle","PRUEBA ESC/POS")
+                .put("text","Conexión directa correcta\n" + ip + ":" + port)
+                .put("qr","OFARO:PRUEBA")
+                .put("qrSize","M")
+                .put("separator","line")
+                .put("imagePosition","none")
+                .put("copies",1);
+        RemotePrinter.print(this, job);
     }
 
     private void writeBitmap(OutputStream out, Bitmap original) throws Exception {
@@ -176,25 +208,18 @@ final class AppCore {
         int sourceW = Math.max(1, original.getWidth());
         int sourceH = Math.max(1, original.getHeight());
         int targetW = Math.min(MAX_IMAGE_DOTS, sourceW);
-        targetW -= targetW % 8;
-        if (targetW < 8) targetW = 8;
+        targetW -= targetW % 8; if (targetW < 8) targetW = 8;
         int targetH = Math.max(1, Math.round(sourceH * (targetW / (float) sourceW)));
         Bitmap bitmap = sourceW == targetW ? original : Bitmap.createScaledBitmap(original,targetW,targetH,true);
         int widthBytes = (targetW + 7) / 8;
         byte[] data = new byte[widthBytes * targetH];
-        for (int y=0; y<targetH; y++) {
-            for (int x=0; x<targetW; x++) {
-                int pixel = bitmap.getPixel(x,y);
-                int alpha = Color.alpha(pixel);
-                int gray = (Color.red(pixel)*30 + Color.green(pixel)*59 + Color.blue(pixel)*11) / 100;
-                boolean black = alpha > 80 && gray < 170;
-                if (black) data[y*widthBytes + (x/8)] |= (byte)(0x80 >> (x%8));
-            }
+        for (int y=0; y<targetH; y++) for (int x=0; x<targetW; x++) {
+            int pixel = bitmap.getPixel(x,y); int alpha = Color.alpha(pixel);
+            int gray = (Color.red(pixel)*30 + Color.green(pixel)*59 + Color.blue(pixel)*11) / 100;
+            if (alpha > 80 && gray < 170) data[y*widthBytes + (x/8)] |= (byte)(0x80 >> (x%8));
         }
-        int xL = widthBytes & 0xFF, xH = (widthBytes >> 8) & 0xFF;
-        int yL = targetH & 0xFF, yH = (targetH >> 8) & 0xFF;
-        out.write(new byte[]{0x1D,0x76,0x30,0x00,(byte)xL,(byte)xH,(byte)yL,(byte)yH});
-        out.write(data);
+        int xL = widthBytes & 0xFF, xH = (widthBytes >> 8) & 0xFF, yL = targetH & 0xFF, yH = (targetH >> 8) & 0xFF;
+        out.write(new byte[]{0x1D,0x76,0x30,0x00,(byte)xL,(byte)xH,(byte)yL,(byte)yH}); out.write(data);
         if (bitmap != original) bitmap.recycle();
     }
 
