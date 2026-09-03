@@ -56,7 +56,7 @@ final class RendererSelfTest {
                     if(rendered.getWidth()!=expected)throw new Exception("Ancho inesperado: "+rendered.getWidth()+" px");
                     if(rendered.getHeight()>7000)throw new Exception("Altura fuera de límite: "+rendered.getHeight());
                     passed++;
-                }catch(Exception e){
+                }catch(Throwable e){
                     String m=e.getMessage();if(m==null||m.trim().isEmpty())m=e.getClass().getSimpleName();
                     errors.add(template+" · "+paper+" mm · "+m);
                 }finally{
@@ -75,7 +75,7 @@ final class RendererSelfTest {
             c.drawText("O FARO",160,72,p);p.setTextSize(20);p.setFakeBoldText(false);c.drawText("IMAGEN DE PRUEBA",160,108,p);
             ByteArrayOutputStream out=new ByteArrayOutputStream();b.compress(Bitmap.CompressFormat.PNG,100,out);
             return "data:image/png;base64,"+Base64.encodeToString(out.toByteArray(),Base64.NO_WRAP);
-        }catch(Exception e){return "";}finally{if(!b.isRecycled())b.recycle();}
+        }catch(Throwable e){return "";}finally{if(!b.isRecycled())b.recycle();}
     }
 
     static final class Result{
