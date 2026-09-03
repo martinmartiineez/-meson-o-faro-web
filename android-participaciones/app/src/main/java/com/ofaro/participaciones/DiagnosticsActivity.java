@@ -25,7 +25,8 @@ import java.util.concurrent.Executors;
 
 public class DiagnosticsActivity extends Activity {
     private final ExecutorService io=Executors.newSingleThreadExecutor();
-    private AppCore core;private LinearLayout page;private TextView live;private String rendererStatus="No ejecutado";
+    private AppCore core;private LinearLayout page;private TextView live;
+    private String backendStatus="No ejecutado",rendererStatus="No ejecutado";
 
     @Override protected void onCreate(Bundle b){super.onCreate(b);core=new AppCore(this);setContentView(build());paint();}
     @Override protected void onDestroy(){io.shutdownNow();super.onDestroy();}
@@ -36,14 +37,15 @@ public class DiagnosticsActivity extends Activity {
         head.addView(text("O FARO",24,Color.WHITE,true));head.addView(text("Diagnóstico · v"+BuildConfig.VERSION_NAME,13,Color.LTGRAY,false));root.addView(head);
         ScrollView scroll=new ScrollView(this);page=col();page.setPadding(dp(15),dp(15),dp(15),dp(30));scroll.addView(page);root.addView(scroll,new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,0,1));
         live=cardText("");page.addView(live);
-        Button server=primary("PROBAR SERVIDOR");server.setOnClickListener(v->probe(server,"appPing","Servidor"));page.addView(server,top(dp(12)));
-        Button promos=secondary("PROBAR PROMOCIONES");promos.setOnClickListener(v->probe(promos,"promotionPing","Promociones"));page.addView(promos,top(dp(8)));
+        Button backend=primary("PROBAR CONTRATOS DEL BACKEND");backend.setOnClickListener(v->testBackend(backend));page.addView(backend,top(dp(12)));
+        Button server=secondary("PROBAR SERVIDOR RÁPIDO");server.setOnClickListener(v->probe(server,"appPing","Servidor"));page.addView(server,top(dp(8)));
+        Button promos=secondary("PROBAR PROMOCIONES RÁPIDO");promos.setOnClickListener(v->probe(promos,"promotionPing","Promociones"));page.addView(promos,top(dp(8)));
         Button renderer=secondary("PROBAR LAS 28 PLANTILLAS · 58/80 MM");renderer.setOnClickListener(v->testRenderer(renderer));page.addView(renderer,top(dp(8)));
         Button printer=secondary("RECONECTAR IMPRESORA");printer.setOnClickListener(v->reconnect(printer));page.addView(printer,top(dp(8)));
         Button print=secondary("IMPRIMIR TICKET DE DIAGNÓSTICO");print.setOnClickListener(v->printTest(print));page.addView(print,top(dp(8)));
         Button copy=secondary("COPIAR DIAGNÓSTICO");copy.setOnClickListener(v->copy());page.addView(copy,top(dp(8)));
         Button back=secondary("VOLVER");back.setOnClickListener(v->finish());page.addView(back,top(dp(14)));
-        TextView note=text("La clave de gestión no aparece ni se copia en este diagnóstico.",12,Color.GRAY,false);note.setPadding(0,dp(14),0,0);page.addView(note);
+        TextView note=text("Las pruebas de backend solo consultan datos. No crean, editan, canjean ni eliminan registros. La clave de gestión no aparece ni se copia.",12,Color.GRAY,false);note.setPadding(0,dp(14),0,0);page.addView(note);
         return root;
     }
 
@@ -57,6 +59,7 @@ public class DiagnosticsActivity extends Activity {
         s.append("Servidor: ").append(core.configured()?"configurado":"falta configuración").append("\n");
         s.append("Impresora: ").append(core.printerStatus()).append("\n");
         s.append("Perfil: ").append(core.printerPaper()).append("mm · corte ").append(core.printerCut()).append(" · avance ").append(core.printerFeed()).append(" · oscuridad ").append(core.printerDarkness()).append("\n");
+        s.append("Contratos backend: ").append(backendStatus).append("\n");
         s.append("Renderer: ").append(rendererStatus).append("\n");
         s.append("Caché reservas hoy: ").append(age("reservations_HOY")).append("\n");
         s.append("Caché promociones: ").append(age("promo_campaigns")).append("\n");
@@ -66,6 +69,7 @@ public class DiagnosticsActivity extends Activity {
     private String age(String name){long a=core.cacheAgeMs(name);if(a==Long.MAX_VALUE)return"sin datos";long m=a/60000;return m<1?"ahora":m+" min";}
     private void paint(){live.setText(report());live.setTextColor(core.printerIp().isEmpty()?Color.rgb(135,65,40):Color.rgb(35,80,55));}
 
+    private void testBackend(Button b){b.setEnabled(false);b.setText("COMPROBANDO CONTRATOS…");io.execute(()->{BackendContractSelfTest.Result result=BackendContractSelfTest.run(core);runOnUiThread(()->{backendStatus=result.details();b.setEnabled(true);b.setText("PROBAR CONTRATOS DEL BACKEND");paint();toast(result.summary());});});}
     private void probe(Button b,String action,String label){b.setEnabled(false);io.execute(()->{try{core.post(core.action(action));runOnUiThread(()->{b.setEnabled(true);paint();toast(label+" · correcto");});}catch(Exception e){runOnUiThread(()->{b.setEnabled(true);paint();toast(label+" · "+msg(e));});}});}
     private void testRenderer(Button b){b.setEnabled(false);b.setText("PROBANDO 56 RENDERIZADOS…");io.execute(()->{RendererSelfTest.Result result=RendererSelfTest.run();runOnUiThread(()->{rendererStatus=result.details();b.setEnabled(true);b.setText("PROBAR LAS 28 PLANTILLAS · 58/80 MM");paint();toast(result.summary());});});}
     private void reconnect(Button b){b.setEnabled(false);io.execute(()->{core.reconnectPrinter();runOnUiThread(()->{b.setEnabled(true);paint();toast(core.printerStatus());});});}
