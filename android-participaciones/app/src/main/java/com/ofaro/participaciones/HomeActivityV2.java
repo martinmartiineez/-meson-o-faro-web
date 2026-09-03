@@ -26,9 +26,11 @@ public class HomeActivityV2 extends Activity {
     private final ExecutorService io=Executors.newSingleThreadExecutor();private long lastServerProbe=0L;
     private final Runnable tick=new Runnable(){@Override public void run(){refreshPrinter();ui.postDelayed(this,2500);}};
 
-    @Override protected void onCreate(Bundle b){super.onCreate(b);core=new AppCore(this);setContentView(build());core.startPrinterWatchdog();requestNotificationOnce();ui.post(tick);probeServer(false);}
+    @Override protected void onCreate(Bundle b){super.onCreate(b);core=new AppCore(this);setContentView(build());core.startPrinterWatchdog();requestNotificationOnce();probeServer(false);}
+    @Override protected void onStart(){super.onStart();ui.removeCallbacks(tick);ui.post(tick);}
     @Override protected void onResume(){super.onResume();if(core!=null){core.startPrinterWatchdog();refreshPrinter();if(System.currentTimeMillis()-lastServerProbe>45_000L)probeServer(false);}}
-    @Override protected void onDestroy(){ui.removeCallbacks(tick);io.shutdownNow();super.onDestroy();}
+    @Override protected void onStop(){ui.removeCallbacks(tick);super.onStop();}
+    @Override protected void onDestroy(){ui.removeCallbacksAndMessages(null);io.shutdownNow();super.onDestroy();}
 
     private android.view.View build(){
         LinearLayout root=col();root.setBackgroundColor(Color.rgb(247,246,243));
