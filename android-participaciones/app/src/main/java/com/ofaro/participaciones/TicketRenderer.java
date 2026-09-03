@@ -49,6 +49,7 @@ final class TicketRenderer {
         if ("image".equals(family)) {
             if (image != null) y = drawImage(c,image,y,width,margin,imagePct) + 18;
             else y = drawCentered(c,p,"SIN IMAGEN",y,contentW,margin,paper<=58?26:34,true)+20;
+            if(image!=null&&!image.isRecycled()) image.recycle();
             return crop(work,(int)Math.max(100,y));
         }
 
