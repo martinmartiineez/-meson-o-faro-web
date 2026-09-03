@@ -9,10 +9,9 @@ import org.json.JSONObject;
 
 import java.io.ByteArrayOutputStream;
 import java.io.OutputStream;
-import java.net.InetSocketAddress;
-import java.net.Socket;
 import java.nio.charset.Charset;
 
+/** Impresión ESC/POS local. No usa la cola remota ni Apps Script. */
 final class RemotePrinter {
     private static final int MAX_IMAGE_DOTS = 576;
 
@@ -21,27 +20,25 @@ final class RemotePrinter {
         int port = core.printerPort();
         if (ip == null || ip.trim().isEmpty()) throw new Exception("IP de impresora no configurada");
         int copies = Math.max(1,Math.min(5,job.optInt("copies",1)));
-        for (int c=0;c<copies;c++) printOne(ip,port,job);
-    }
 
-    private static void printOne(String ip, int port, JSONObject job) throws Exception {
         Bitmap rendered = null;
         try { rendered = TicketRenderer.render(job); } catch (Exception ignored) {}
-        try (Socket socket = new Socket()) {
-            socket.connect(new InetSocketAddress(ip.trim(),port),4500);
-            socket.setSoTimeout(8000);
-            try (OutputStream out = socket.getOutputStream()) {
-                init(out);
-                if (rendered != null) {
-                    align(out,1);
-                    bitmap(out,rendered);
-                    text(out,"\n\n");
-                } else {
-                    legacy(out,job);
+        final Bitmap ticketBitmap = rendered;
+        try {
+            PrinterConnectionManager.get().execute(ip,port,out -> {
+                for (int c=0;c<copies;c++) {
+                    init(out);
+                    if (ticketBitmap != null) {
+                        align(out,1);
+                        bitmap(out,ticketBitmap);
+                        text(out,"\n\n");
+                    } else {
+                        legacy(out,job);
+                    }
+                    cut(out);
+                    text(out,"\n");
                 }
-                cut(out);
-                out.flush();
-            }
+            });
         } finally {
             if (rendered != null && !rendered.isRecycled()) rendered.recycle();
         }
@@ -83,7 +80,9 @@ final class RemotePrinter {
         int wb=(tw+7)/8;byte[] data=new byte[wb*th];
         for(int y=0;y<th;y++)for(int x=0;x<tw;x++){
             int px=b.getPixel(x,y),a=Color.alpha(px),g=(Color.red(px)*30+Color.green(px)*59+Color.blue(px)*11)/100;
-            if(a>80&&g<180)data[y*wb+x/8]|=(byte)(0x80>>(x%8));
+            // Umbral ligeramente adaptativo para térmica: preserva texto y QR.
+            int threshold = ((x & 1) == (y & 1)) ? 178 : 188;
+            if(a>80&&g<threshold)data[y*wb+x/8]|=(byte)(0x80>>(x%8));
         }
         out.write(new byte[]{0x1D,0x76,0x30,0,(byte)(wb&255),(byte)((wb>>8)&255),(byte)(th&255),(byte)((th>>8)&255)});out.write(data);
         if(b!=original)b.recycle();
