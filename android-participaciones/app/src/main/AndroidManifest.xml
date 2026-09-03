@@ -22,13 +22,15 @@
         <activity android:name=".WebManagementActivity" android:exported="false" android:screenOrientation="portrait" />
         <activity android:name=".ManagementActivityV3" android:exported="false" android:screenOrientation="portrait" />
         <activity android:name=".PromotionsActivity" android:exported="false" android:screenOrientation="portrait" />
+        <activity android:name=".PromotionsSimpleActivity" android:exported="false" android:screenOrientation="portrait" />
         <activity android:name=".ReservationsActivity" android:exported="false" android:screenOrientation="portrait" />
         <activity android:name=".ToolsActivity" android:exported="false" android:screenOrientation="portrait" />
         <activity android:name=".PrinterSettingsActivity" android:exported="false" android:screenOrientation="portrait" />
         <activity android:name=".WebAppActivity" android:exported="false" android:screenOrientation="portrait" />
+        <activity android:name=".NativeMainActivity" android:exported="false" android:screenOrientation="portrait" />
 
         <activity
-            android:name=".NativeMainActivity"
+            android:name=".HomeActivityV2"
             android:exported="true"
             android:screenOrientation="portrait">
             <intent-filter>
