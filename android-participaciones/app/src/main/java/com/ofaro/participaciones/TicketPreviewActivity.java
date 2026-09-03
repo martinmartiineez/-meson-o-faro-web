@@ -10,6 +10,8 @@ import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.util.Base64;
 import android.view.Gravity;
 import android.view.View;
@@ -34,6 +36,7 @@ import java.util.concurrent.Executors;
 
 public class TicketPreviewActivity extends Activity {
     private static final int PICK_IMAGE=4401;
+    private static final long PREVIEW_DEBOUNCE_MS=120L;
     private static final String[] TEMPLATES={
             "Reserva Express","Reserva Elegante","Reserva Completa","Reserva Cliente",
             "Promoción Premium","Promoción Clásica","Entrada QR","Ruleta QR","Rasca QR",
@@ -49,20 +52,30 @@ public class TicketPreviewActivity extends Activity {
     private static final String[] IMAGE_POS={"No imprimir","Arriba","Abajo"};
 
     private final ExecutorService io=Executors.newSingleThreadExecutor();
+    private final Handler previewHandler=new Handler(Looper.getMainLooper());
+    private final Runnable previewRunnable=this::renderPreviewNow;
     private AppCore core;
     private EditText title,subtitle,body,qr,copies;
     private Spinner template,typography,paper,qrSize,separator,imagePosition;
     private SeekBar imageSize;
     private TextView imageSizeLabel,printerStatus,status;
     private ImageView preview;
+    private Bitmap previewBitmap;
     private String imageData="";
     private String reference="",detail="",reservationId="",participationCode="",type="Ticket";
     private volatile boolean rendering;
+    private volatile boolean renderPending;
 
     @Override protected void onCreate(Bundle b){
         super.onCreate(b);core=new AppCore(this);readIntent();setContentView(build());core.startPrinterWatchdog();refreshPrinterStatus();renderPreview();
     }
-    @Override protected void onDestroy(){io.shutdownNow();super.onDestroy();}
+    @Override protected void onDestroy(){
+        previewHandler.removeCallbacksAndMessages(null);
+        io.shutdownNow();
+        Bitmap old=previewBitmap;previewBitmap=null;
+        if(old!=null&&!old.isRecycled())old.recycle();
+        super.onDestroy();
+    }
 
     private void readIntent(){Intent i=getIntent();reference=v(i,"reference");detail=v(i,"detail");reservationId=v(i,"reservationId");participationCode=v(i,"participationCode");String t=v(i,"type");if(!t.isEmpty())type=t;}
     private String v(Intent i,String k){String s=i.getStringExtra(k);return s==null?"":s;}
@@ -92,9 +105,8 @@ public class TicketPreviewActivity extends Activity {
         Button close=secondary("CERRAR");close.setOnClickListener(x->finish());page.addView(close,top(dp(9)));
         status=txt("",13,Color.DKGRAY,false);status.setPadding(0,dp(10),0,0);page.addView(status);
 
-        View.OnClickListener change=x->renderPreview();
         template.setOnItemSelectedListener(listener(this::renderPreview));typography.setOnItemSelectedListener(listener(this::renderPreview));paper.setOnItemSelectedListener(listener(this::renderPreview));qrSize.setOnItemSelectedListener(listener(this::renderPreview));separator.setOnItemSelectedListener(listener(this::renderPreview));imagePosition.setOnItemSelectedListener(listener(this::renderPreview));
-        android.text.TextWatcher watcher=new SimpleWatcher(this::renderPreview);title.addTextChangedListener(watcher);subtitle.addTextChangedListener(watcher);body.addTextChangedListener(watcher);qr.addTextChangedListener(watcher);copies.addTextChangedListener(watcher);
+        android.text.TextWatcher watcher=new SimpleWatcher(this::renderPreview);title.addTextChangedListener(watcher);subtitle.addTextChangedListener(watcher);body.addTextChangedListener(watcher);qr.addTextChangedListener(watcher);
         imageSize.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener(){public void onProgressChanged(SeekBar s,int p,boolean f){imageSizeLabel.setText("Tamaño imagen · "+(25+p)+"%");renderPreview();}public void onStartTrackingTouch(SeekBar s){}public void onStopTrackingTouch(SeekBar s){}});
         return root;
     }
@@ -102,7 +114,33 @@ public class TicketPreviewActivity extends Activity {
     private String defaultTemplate(){String t=type.toLowerCase();if(t.contains("reserva"))return"Reserva Express";if(t.contains("promoc"))return"Promoción Premium";if(t.contains("premio"))return"Premio Canjeable";if(t.contains("qr"))return"QR Personalizado";if(t.contains("imagen"))return"Solo Imagen";return"Minimal Premium";}
 
     private void renderPreview(){
-        if(preview==null||rendering)return;rendering=true;final JSONObject j=currentJob();io.execute(()->{Bitmap bm=null;try{bm=TicketRenderer.render(j);}catch(Exception ignored){}Bitmap out=bm;runOnUiThread(()->{if(out!=null)preview.setImageBitmap(out);rendering=false;});});
+        if(preview==null||isFinishing())return;
+        previewHandler.removeCallbacks(previewRunnable);
+        previewHandler.postDelayed(previewRunnable,PREVIEW_DEBOUNCE_MS);
+    }
+
+    private void renderPreviewNow(){
+        if(preview==null||isFinishing())return;
+        if(rendering){renderPending=true;return;}
+        rendering=true;renderPending=false;
+        final JSONObject j=currentJob();
+        io.execute(()->{
+            Bitmap bm=null;
+            try{bm=TicketRenderer.render(j);}catch(Exception ignored){}
+            Bitmap out=bm;
+            runOnUiThread(()->{
+                if(isFinishing()){
+                    if(out!=null&&!out.isRecycled())out.recycle();
+                    rendering=false;
+                    return;
+                }
+                Bitmap old=previewBitmap;
+                if(out!=null){previewBitmap=out;preview.setImageBitmap(out);}
+                if(old!=null&&old!=out&&!old.isRecycled())old.recycle();
+                rendering=false;
+                if(renderPending){renderPending=false;renderPreview();}
+            });
+        });
     }
 
     private JSONObject currentJob(){
@@ -125,7 +163,19 @@ public class TicketPreviewActivity extends Activity {
 
     private void pickImage(){Intent i=new Intent(Intent.ACTION_OPEN_DOCUMENT);i.addCategory(Intent.CATEGORY_OPENABLE);i.setType("image/*");i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION|Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);startActivityForResult(i,PICK_IMAGE);}
     @Override protected void onActivityResult(int requestCode,int resultCode,Intent data){super.onActivityResult(requestCode,resultCode,data);if(requestCode==PICK_IMAGE&&resultCode==RESULT_OK&&data!=null&&data.getData()!=null){Uri u=data.getData();try{getContentResolver().takePersistableUriPermission(u,Intent.FLAG_GRANT_READ_URI_PERMISSION);}catch(Exception ignored){}try{imageData=encodeImage(u);setSpinner(imagePosition,"Arriba");renderPreview();}catch(Exception e){alert("Imagen",msg(e));}}}
-    private String encodeImage(Uri uri)throws Exception{try(InputStream in=getContentResolver().openInputStream(uri)){Bitmap b=BitmapFactory.decodeStream(in);if(b==null)throw new Exception("Imagen no compatible");int max=900;float sc=Math.min(1f,max/(float)Math.max(1,b.getWidth()));Bitmap out=sc<1?Bitmap.createScaledBitmap(b,Math.max(1,Math.round(b.getWidth()*sc)),Math.max(1,Math.round(b.getHeight()*sc)),true):b;ByteArrayOutputStream os=new ByteArrayOutputStream();out.compress(Bitmap.CompressFormat.JPEG,82,os);if(out!=b)out.recycle();return"data:image/jpeg;base64,"+Base64.encodeToString(os.toByteArray(),Base64.NO_WRAP);}}
+    private String encodeImage(Uri uri)throws Exception{
+        Bitmap source=null,scaled=null;
+        try(InputStream in=getContentResolver().openInputStream(uri)){
+            source=BitmapFactory.decodeStream(in);if(source==null)throw new Exception("Imagen no compatible");
+            int max=900;float sc=Math.min(1f,max/(float)Math.max(1,source.getWidth()));
+            scaled=sc<1?Bitmap.createScaledBitmap(source,Math.max(1,Math.round(source.getWidth()*sc)),Math.max(1,Math.round(source.getHeight()*sc)),true):source;
+            ByteArrayOutputStream os=new ByteArrayOutputStream();scaled.compress(Bitmap.CompressFormat.JPEG,82,os);
+            return"data:image/jpeg;base64,"+Base64.encodeToString(os.toByteArray(),Base64.NO_WRAP);
+        } finally {
+            if(scaled!=null&&scaled!=source&&!scaled.isRecycled())scaled.recycle();
+            if(source!=null&&!source.isRecycled())source.recycle();
+        }
+    }
 
     private Spinner spin(LinearLayout page,String label,String[] values,String selected){TextView l=txt(label,13,Color.DKGRAY,true);l.setPadding(0,dp(10),0,dp(4));page.addView(l);Spinner s=new Spinner(this);s.setAdapter(new ArrayAdapter<>(this,android.R.layout.simple_spinner_dropdown_item,values));page.addView(s,new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,dp(50)));setSpinner(s,selected);return s;}
     private Spinner spinInto(LinearLayout box,String label,String[] values,String selected){return spin(box,label,values,selected);}
