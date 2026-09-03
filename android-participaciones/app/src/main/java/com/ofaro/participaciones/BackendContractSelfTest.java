@@ -67,8 +67,14 @@ final class BackendContractSelfTest {
         try {
             JSONObject r=core.post(core.action("promotionPing"));
             requireOk(r,"promotionPing");
-            ok.add("Promociones · servidor");
+            ok.add("Promociones · servidor privado");
         } catch(Exception e){errors.add("promotionPing · "+message(e));}
+
+        try {
+            JSONObject r=core.post(core.action("promoPublicPing"));
+            requireOk(r,"promoPublicPing");
+            ok.add("Promociones · QR público");
+        } catch(Exception e){errors.add("promoPublicPing · "+message(e));}
 
         try {
             JSONObject r=core.post(core.action("promotionList"));
