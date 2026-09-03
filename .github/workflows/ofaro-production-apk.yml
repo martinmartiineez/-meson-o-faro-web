@@ -2,6 +2,9 @@ name: Build O Faro Gestion Production APK
 
 on:
   workflow_dispatch:
+  push:
+    tags:
+      - 'ofaro-prod-v*'
 
 permissions:
   contents: read
@@ -16,10 +19,8 @@ jobs:
     timeout-minutes: 25
 
     steps:
-      - name: Checkout
+      - name: Checkout exact release ref
         uses: actions/checkout@v4
-        with:
-          ref: feature/participaciones-apk
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
@@ -46,6 +47,16 @@ jobs:
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "code=$CODE" >> "$GITHUB_OUTPUT"
           echo "Preparando O Faro Gestión v$VERSION ($CODE)"
+
+      - name: Validate production tag
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: bash
+        run: |
+          EXPECTED="ofaro-prod-v${{ steps.app_version.outputs.version }}"
+          test "$GITHUB_REF_NAME" = "$EXPECTED" || {
+            echo "Etiqueta incorrecta: $GITHUB_REF_NAME. Debe ser $EXPECTED" >&2
+            exit 1
+          }
 
       - name: Validate production signing secrets
         env:
