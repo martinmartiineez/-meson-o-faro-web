@@ -25,7 +25,7 @@ import java.util.concurrent.Executors;
 
 public class DiagnosticsActivity extends Activity {
     private final ExecutorService io=Executors.newSingleThreadExecutor();
-    private AppCore core;private LinearLayout page;private TextView live;
+    private AppCore core;private LinearLayout page;private TextView live;private String rendererStatus="No ejecutado";
 
     @Override protected void onCreate(Bundle b){super.onCreate(b);core=new AppCore(this);setContentView(build());paint();}
     @Override protected void onDestroy(){io.shutdownNow();super.onDestroy();}
@@ -38,6 +38,7 @@ public class DiagnosticsActivity extends Activity {
         live=cardText("");page.addView(live);
         Button server=primary("PROBAR SERVIDOR");server.setOnClickListener(v->probe(server,"appPing","Servidor"));page.addView(server,top(dp(12)));
         Button promos=secondary("PROBAR PROMOCIONES");promos.setOnClickListener(v->probe(promos,"promotionPing","Promociones"));page.addView(promos,top(dp(8)));
+        Button renderer=secondary("PROBAR LAS 28 PLANTILLAS · 58/80 MM");renderer.setOnClickListener(v->testRenderer(renderer));page.addView(renderer,top(dp(8)));
         Button printer=secondary("RECONECTAR IMPRESORA");printer.setOnClickListener(v->reconnect(printer));page.addView(printer,top(dp(8)));
         Button print=secondary("IMPRIMIR TICKET DE DIAGNÓSTICO");print.setOnClickListener(v->printTest(print));page.addView(print,top(dp(8)));
         Button copy=secondary("COPIAR DIAGNÓSTICO");copy.setOnClickListener(v->copy());page.addView(copy,top(dp(8)));
@@ -56,6 +57,7 @@ public class DiagnosticsActivity extends Activity {
         s.append("Servidor: ").append(core.configured()?"configurado":"falta configuración").append("\n");
         s.append("Impresora: ").append(core.printerStatus()).append("\n");
         s.append("Perfil: ").append(core.printerPaper()).append("mm · corte ").append(core.printerCut()).append(" · avance ").append(core.printerFeed()).append(" · oscuridad ").append(core.printerDarkness()).append("\n");
+        s.append("Renderer: ").append(rendererStatus).append("\n");
         s.append("Caché reservas hoy: ").append(age("reservations_HOY")).append("\n");
         s.append("Caché promociones: ").append(age("promo_campaigns")).append("\n");
         s.append("Caché premios: ").append(age("promo_prizes")).append("\n");
@@ -64,7 +66,8 @@ public class DiagnosticsActivity extends Activity {
     private String age(String name){long a=core.cacheAgeMs(name);if(a==Long.MAX_VALUE)return"sin datos";long m=a/60000;return m<1?"ahora":m+" min";}
     private void paint(){live.setText(report());live.setTextColor(core.printerIp().isEmpty()?Color.rgb(135,65,40):Color.rgb(35,80,55));}
 
-    private void probe(Button b,String action,String label){b.setEnabled(false);io.execute(()->{try{JSONObject r=core.post(core.action(action));runOnUiThread(()->{b.setEnabled(true);paint();toast(label+" · correcto");});}catch(Exception e){runOnUiThread(()->{b.setEnabled(true);paint();toast(label+" · "+msg(e));});}});}
+    private void probe(Button b,String action,String label){b.setEnabled(false);io.execute(()->{try{core.post(core.action(action));runOnUiThread(()->{b.setEnabled(true);paint();toast(label+" · correcto");});}catch(Exception e){runOnUiThread(()->{b.setEnabled(true);paint();toast(label+" · "+msg(e));});}});}
+    private void testRenderer(Button b){b.setEnabled(false);b.setText("PROBANDO 56 RENDERIZADOS…");io.execute(()->{RendererSelfTest.Result result=RendererSelfTest.run();runOnUiThread(()->{rendererStatus=result.details();b.setEnabled(true);b.setText("PROBAR LAS 28 PLANTILLAS · 58/80 MM");paint();toast(result.summary());});});}
     private void reconnect(Button b){b.setEnabled(false);io.execute(()->{core.reconnectPrinter();runOnUiThread(()->{b.setEnabled(true);paint();toast(core.printerStatus());});});}
     private void printTest(Button b){b.setEnabled(false);io.execute(()->{try{core.printTest(core.printerIp(),core.printerPort());runOnUiThread(()->{b.setEnabled(true);paint();toast("Ticket enviado a la impresora");});}catch(Exception e){runOnUiThread(()->{b.setEnabled(true);paint();toast("Impresora · "+msg(e));});}});}
     private void copy(){ClipboardManager cm=(ClipboardManager)getSystemService(Context.CLIPBOARD_SERVICE);cm.setPrimaryClip(ClipData.newPlainText("Diagnóstico O Faro",report()));toast("Diagnóstico copiado");}
