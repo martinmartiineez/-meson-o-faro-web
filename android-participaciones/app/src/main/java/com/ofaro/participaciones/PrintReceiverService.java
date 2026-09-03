@@ -53,9 +53,6 @@ public class PrintReceiverService extends Service {
                 }
 
                 boolean ok = manager.ensureConnected(ip,port);
-                // Un socket TCP puede seguir devolviendo isConnected()==true aunque
-                // la térmica o el router hayan cerrado el otro extremo. Se renueva
-                // mientras está ocioso, siempre usando el mismo bloqueo que imprime.
                 if (ok && manager.needsRefresh(REFRESH_CONNECTION_MS)) {
                     manager.reconnect(ip,port);
                     ok = manager.isConnected();
@@ -83,7 +80,7 @@ public class PrintReceiverService extends Service {
         }
     }
     private Notification notification(String text){
-        Intent open=new Intent(this,NativeMainActivity.class);
+        Intent open=new Intent(this,HomeActivityV2.class);
         PendingIntent pi=PendingIntent.getActivity(this,0,open,PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE);
         Notification.Builder b=Build.VERSION.SDK_INT>=26?new Notification.Builder(this,CHANNEL):new Notification.Builder(this);
         return b.setContentTitle("O Faro · Impresora")
