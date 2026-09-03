@@ -18,23 +18,24 @@ final class PromoRules {
      * Una promoción está lista solo si:
      * - tiene reparto activo;
      * - los porcentajes activos suman exactamente 100 %;
-     * - existe al menos un premio real (no P000 / SIN_PREMIO).
+     * - existe al menos un premio real que siga activo y con stock disponible.
      */
     static boolean distributionReady(JSONObject detail){
         if(detail==null)return false;
         JSONObject c=detail.optJSONObject("campaign");if(c==null)return false;
+        JSONArray prizes=detail.optJSONArray("prizes");
         String type=c.optString("type","");
         if("Ruleta".equalsIgnoreCase(type)){
             JSONArray a=detail.optJSONArray("segments");
-            return validDistribution(a,true);
+            return validDistribution(a,prizes,true);
         }
         JSONArray a=detail.optJSONArray("prizeLinks");
-        return validDistribution(a,false);
+        return validDistribution(a,prizes,false);
     }
 
-    private static boolean validDistribution(JSONArray items,boolean wheel){
+    private static boolean validDistribution(JSONArray items,JSONArray prizes,boolean wheel){
         if(items==null||items.length()==0)return false;
-        double total=0d;boolean realPrize=false;int activeCount=0;
+        double total=0d;boolean availableRealPrize=false;int activeCount=0;
         for(int i=0;i<items.length();i++){
             JSONObject o=items.optJSONObject(i);if(o==null||!o.optBoolean("active",true))continue;
             double pct=o.optDouble("percentage",0d);
@@ -42,10 +43,29 @@ final class PromoRules {
             activeCount++;total+=pct;
             String prizeId=o.optString("prizeId","").trim();
             String result=o.optString("resultType","").trim();
-            if(!prizeId.isEmpty()&&!"P000".equalsIgnoreCase(prizeId))realPrize=true;
-            if(wheel&&"PREMIO".equalsIgnoreCase(result)&&!"P000".equalsIgnoreCase(prizeId))realPrize=true;
+            boolean isPrize=!prizeId.isEmpty()&&!"P000".equalsIgnoreCase(prizeId);
+            if(wheel&&!result.isEmpty()&&!"PREMIO".equalsIgnoreCase(result))isPrize=false;
+            if(isPrize&&prizeAvailable(prizes,prizeId))availableRealPrize=true;
         }
-        return activeCount>0&&realPrize&&Math.abs(total-100d)<0.01;
+        return activeCount>0&&availableRealPrize&&Math.abs(total-100d)<0.01;
+    }
+
+    static boolean prizeAvailable(JSONArray prizes,String id){
+        if(prizes==null||id==null||id.trim().isEmpty()||"P000".equalsIgnoreCase(id.trim()))return false;
+        String wanted=id.trim();
+        for(int i=0;i<prizes.length();i++){
+            JSONObject p=prizes.optJSONObject(i);if(p==null||!wanted.equals(p.optString("id","").trim()))continue;
+            if(!p.optBoolean("active",true))return false;
+            if(p.has("remaining")&&!p.isNull("remaining")){
+                Object remaining=p.opt("remaining");
+                String text=remaining==null?"":String.valueOf(remaining).trim();
+                if(!text.isEmpty()){
+                    try{if(Double.parseDouble(text)<=0d)return false;}catch(Exception ignored){}
+                }
+            }
+            return true;
+        }
+        return false;
     }
 
     static boolean basicsReady(JSONObject c){
