@@ -15,33 +15,18 @@
         android:theme="@style/AppTheme"
         android:usesCleartextTraffic="true">
 
-        <activity
-            android:name=".MainActivity"
-            android:exported="false"
-            android:screenOrientation="portrait" />
-        <activity
-            android:name=".ManagementActivity"
-            android:exported="false"
-            android:screenOrientation="portrait" />
-        <activity
-            android:name=".ParticipationActivityV3"
-            android:exported="false"
-            android:screenOrientation="portrait" />
-        <activity
-            android:name=".TicketPreviewActivity"
-            android:exported="false"
-            android:screenOrientation="portrait" />
-        <activity
-            android:name=".WebManagementActivity"
-            android:exported="false"
-            android:screenOrientation="portrait" />
-        <activity
-            android:name=".ManagementActivityV3"
-            android:exported="false"
-            android:screenOrientation="portrait" />
+        <activity android:name=".MainActivity" android:exported="false" android:screenOrientation="portrait" />
+        <activity android:name=".ManagementActivity" android:exported="false" android:screenOrientation="portrait" />
+        <activity android:name=".ParticipationActivityV3" android:exported="false" android:screenOrientation="portrait" />
+        <activity android:name=".TicketPreviewActivity" android:exported="false" android:screenOrientation="portrait" />
+        <activity android:name=".WebManagementActivity" android:exported="false" android:screenOrientation="portrait" />
+        <activity android:name=".ManagementActivityV3" android:exported="false" android:screenOrientation="portrait" />
+        <activity android:name=".PromotionsActivity" android:exported="false" android:screenOrientation="portrait" />
+        <activity android:name=".PrinterSettingsActivity" android:exported="false" android:screenOrientation="portrait" />
+        <activity android:name=".WebAppActivity" android:exported="false" android:screenOrientation="portrait" />
 
         <activity
-            android:name=".WebAppActivity"
+            android:name=".NativeMainActivity"
             android:exported="true"
             android:screenOrientation="portrait">
             <intent-filter>
@@ -56,7 +41,7 @@
             android:foregroundServiceType="specialUse">
             <property
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
-                android:value="Recepción de trabajos de impresión ESC/POS de Mesón O Faro" />
+                android:value="Mantiene la conexión local TCP con la impresora térmica ESC/POS de Mesón O Faro" />
         </service>
 
         <receiver
