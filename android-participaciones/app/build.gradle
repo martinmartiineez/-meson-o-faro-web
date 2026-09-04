@@ -1,3 +1,4 @@
+// O Faro Gestión v4.4.0 · candidata con selector de zona validado
 plugins { id 'com.android.application' }
 
 android {
