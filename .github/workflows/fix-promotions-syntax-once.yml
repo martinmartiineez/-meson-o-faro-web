@@ -1,0 +1,42 @@
+name: Fix promotions syntax once
+
+on:
+  push:
+    branches:
+      - feature/participaciones-apk
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/participaciones-apk
+      - name: Fix exact listener closure
+        shell: python
+        run: |
+          from pathlib import Path
+          p=Path('android-participaciones/app/src/main/java/com/ofaro/participaciones/PromotionsCenterActivity.java')
+          s=p.read_text(encoding='utf-8')
+          old='alert("No se pudo guardar",msg(e));});}});});d.show();'
+          new='alert("No se pudo guardar",msg(e));});}});}));d.show();'
+          if old not in s:
+              print('La secuencia ya está corregida o no existe; no se modifica nada.')
+          else:
+              s=s.replace(old,new,1)
+              p.write_text(s,encoding='utf-8')
+      - name: Commit if changed
+        shell: bash
+        run: |
+          if git diff --quiet; then
+            echo "Sin cambios"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add android-participaciones/app/src/main/java/com/ofaro/participaciones/PromotionsCenterActivity.java
+          git commit -m "fix(android): cerrar listener del editor de premios"
+          git push origin HEAD:feature/participaciones-apk
