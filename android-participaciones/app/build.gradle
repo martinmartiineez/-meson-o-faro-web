@@ -1,4 +1,4 @@
-// O Faro Gestión v5.0.0-alpha2 · visual foundation adaptada al terminal de trabajo
+// O Faro Gestión v5.0.0-alpha3 · single-activity shell y navegación fluida
 plugins { id 'com.android.application' }
 
 android {
@@ -13,8 +13,8 @@ android {
         applicationId 'com.ofaro.participaciones'
         minSdk 26
         targetSdk 35
-        versionCode 15
-        versionName '5.0.0-alpha2'
+        versionCode 16
+        versionName '5.0.0-alpha3'
     }
 
     signingConfigs {
