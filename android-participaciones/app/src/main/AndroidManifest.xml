@@ -17,11 +17,12 @@
         android:theme="@style/AppTheme"
         android:usesCleartextTraffic="false">
 
-        <!-- Flujo oficial de producción. Las actividades heredadas quedan fuera del manifiesto. -->
         <activity android:name=".TicketPreviewActivity" android:exported="false" android:screenOrientation="portrait" />
         <activity android:name=".WebManagementActivity" android:exported="false" android:screenOrientation="portrait" />
         <activity android:name=".PromotionsSimpleActivity" android:exported="false" android:screenOrientation="portrait" />
         <activity android:name=".ReservationsActivity" android:exported="false" android:screenOrientation="portrait" />
+        <activity android:name=".PromotionsV5Activity" android:exported="false" android:screenOrientation="portrait" />
+        <activity android:name=".ReservationsV5Activity" android:exported="false" android:screenOrientation="portrait" />
         <activity android:name=".ToolsActivity" android:exported="false" android:screenOrientation="portrait" />
         <activity android:name=".PrinterSettingsActivity" android:exported="false" android:screenOrientation="portrait" />
         <activity android:name=".DiagnosticsActivity" android:exported="false" android:screenOrientation="portrait" />
