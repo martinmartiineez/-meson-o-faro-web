@@ -2,7 +2,7 @@ name: Build O Faro Gestion APK
 
 on:
   push:
-    branches: ["feature/participaciones-apk"]
+    branches: ["feature/redesign-v5"]
     paths:
       - "android-participaciones/**"
       - ".github/workflows/participaciones-apk.yml"
@@ -24,7 +24,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          ref: feature/participaciones-apk
+          ref: feature/redesign-v5
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
