@@ -26,6 +26,7 @@
         <activity android:name=".PrinterSettingsActivity" android:exported="false" android:screenOrientation="portrait" />
         <activity android:name=".DiagnosticsActivity" android:exported="false" android:screenOrientation="portrait" />
         <activity android:name=".WebAppActivity" android:exported="false" android:screenOrientation="portrait" />
+        <activity android:name=".V5SectionActivity" android:exported="false" android:screenOrientation="portrait" />
 
         <activity
             android:name=".HomeActivityV2"
