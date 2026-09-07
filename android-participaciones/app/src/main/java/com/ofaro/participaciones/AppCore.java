@@ -1,5 +1,6 @@
 package com.ofaro.participaciones;
 
+import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
@@ -10,6 +11,7 @@ import android.net.Network;
 import android.net.NetworkCapabilities;
 import android.net.Uri;
 import android.os.Build;
+import android.os.Looper;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -49,8 +51,10 @@ final class AppCore {
 
     private final SharedPreferences prefs;
     private final Context context;
+    private final Activity activity;
 
     AppCore(Context context) {
+        this.activity = context instanceof Activity ? (Activity) context : null;
         this.context = context.getApplicationContext();
         this.prefs = this.context.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
         migrateDefaults();
@@ -225,19 +229,48 @@ final class AppCore {
                 .put("copies",1);
     }
 
+    private void previewAndPrint(JSONObject job,String prefKey,String fallback)throws Exception{
+        String chosen=job.optString("templateId",fallback);
+        if(activity!=null && Looper.myLooper()!=Looper.getMainLooper()) {
+            chosen=V5PrintPreview.choose(activity,this,job,prefKey,fallback);
+        }
+        job.put("templateId",chosen);
+        RemotePrinter.print(this,job);
+    }
+
     void printTicket(String title,String subtitle,String body,String qrData,String imageUri,int imagePosition) throws Exception {
+        String fallback="Minimal Premium";
+        String initial=prefs.getString("defaultTemplateGeneral",fallback);
         JSONObject job=basePrintJob()
-                .put("templateId","Minimal Premium")
+                .put("templateId",initial)
                 .put("title",safe(title)).put("subtitle",safe(subtitle)).put("text",safe(body))
                 .put("qr",safe(qrData)).put("qrSize","L")
                 .put("imagePosition",imagePosition==1?"top":imagePosition==2?"bottom":"none");
         if(imagePosition!=0 && imageUri!=null && !imageUri.trim().isEmpty()) {
             job.put("imageData",ImageUtil.toDataUri(context,imageUri));
         }
-        RemotePrinter.print(this,job);
+        previewAndPrint(job,"defaultTemplateGeneral",fallback);
     }
-    void printQrTicket(String title,String text,String qrData)throws Exception{printTicket(title,"",text,qrData,"",0);}
-    void printFreeText(String title,String text,String qrData)throws Exception{printTicket(title,"",text,qrData,"",0);}
+
+    void printQrTicket(String title,String text,String qrData)throws Exception{
+        String fallback="QR Personalizado";
+        String initial=prefs.getString("defaultTemplateQr",fallback);
+        JSONObject job=basePrintJob()
+                .put("templateId",initial)
+                .put("title",safe(title)).put("subtitle","").put("text",safe(text))
+                .put("qr",safe(qrData)).put("qrSize","L").put("imagePosition","none");
+        previewAndPrint(job,"defaultTemplateQr",fallback);
+    }
+
+    void printFreeText(String title,String text,String qrData)throws Exception{
+        String fallback="Minimal Premium";
+        String initial=prefs.getString("defaultTemplateGeneral",fallback);
+        JSONObject job=basePrintJob()
+                .put("templateId",initial)
+                .put("title",safe(title)).put("subtitle","").put("text",safe(text))
+                .put("qr",safe(qrData)).put("qrSize","L").put("imagePosition","none");
+        previewAndPrint(job,"defaultTemplateGeneral",fallback);
+    }
 
     void printReservation(JSONObject r) throws Exception {
         StringBuilder body=new StringBuilder();
@@ -250,10 +283,12 @@ final class AppCore {
         String phone=r.optString("phone","");if(!phone.isEmpty())body.append("Tel: ").append(phone).append("\n");
         String notes=r.optString("notes","");if(!notes.isEmpty())body.append("\nOBSERVACIONES\n").append(notes).append("\n");
         body.append("\n").append(r.optString("id",""));
-        JSONObject job=basePrintJob().put("templateId","Reserva Express")
+        String fallback="Reserva Express";
+        String initial=prefs.getString("defaultTemplateReservation",fallback);
+        JSONObject job=basePrintJob().put("templateId",initial)
                 .put("title","MESÓN O FARO").put("subtitle","RESERVA")
                 .put("text",body.toString()).put("qr","").put("imagePosition","none");
-        RemotePrinter.print(this,job);
+        previewAndPrint(job,"defaultTemplateReservation",fallback);
     }
 
     void printTest(String ip,int port)throws Exception{
