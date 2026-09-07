@@ -49,9 +49,15 @@ final class AppCore {
             "webSectionSave","webSectionDelete"
     ));
 
+    private static final long RESERVATION_CREATE_DEDUPE_MS = 20000L;
+
     private final SharedPreferences prefs;
     private final Context context;
     private final Activity activity;
+    private final Object reservationCreateGuard = new Object();
+    private boolean reservationCreateInFlight = false;
+    private String lastReservationCreateFingerprint = "";
+    private long lastReservationCreateAt = 0L;
 
     AppCore(Context context) {
         this.activity = context instanceof Activity ? (Activity) context : null;
@@ -104,30 +110,74 @@ final class AppCore {
      * Política única de red:
      * - lecturas: rápida, un único reintento si falla transporte;
      * - acciones interactivas/escrituras: nunca se reintentan automáticamente;
+     * - reservationCreate: bloquea dobles pulsaciones y reenvíos idénticos durante 20 s;
      * - ninguna petición puede dejar la interfaz esperando 25-50 s.
      */
     JSONObject post(JSONObject body) throws Exception {
         String action = body == null ? "" : body.optString("action", "");
         boolean read = READ_ACTIONS.contains(action);
         boolean interactive = INTERACTIVE_ACTIONS.contains(action);
-        int connectMs = read ? 3500 : 4000;
-        int readMs = interactive ? 12000 : (read ? 7500 : 12000);
-        int attempts = read ? 2 : 1;
-        Exception last = null;
-        for (int i=0;i<attempts;i++) {
-            try {
-                JSONObject result = postTo(api(),body,connectMs,readMs);
-                ensureOk(result);
-                return result;
-            } catch (Exception e) {
-                last = e;
-                if (i+1<attempts) {
-                    try { Thread.sleep(250L); }
-                    catch (InterruptedException interrupted) { Thread.currentThread().interrupt(); break; }
+        boolean reservationCreate = "reservationCreate".equals(action);
+        String reservationFingerprint = reservationCreate ? reservationFingerprint(body) : "";
+
+        if (reservationCreate) {
+            synchronized (reservationCreateGuard) {
+                long now = System.currentTimeMillis();
+                boolean sameRecent = reservationFingerprint.equals(lastReservationCreateFingerprint)
+                        && now - lastReservationCreateAt < RESERVATION_CREATE_DEDUPE_MS;
+                if (reservationCreateInFlight || sameRecent) {
+                    throw new Exception("Esta reserva ya se está guardando. Espera unos segundos antes de volver a intentarlo.");
+                }
+                reservationCreateInFlight = true;
+                lastReservationCreateFingerprint = reservationFingerprint;
+                lastReservationCreateAt = now;
+            }
+        }
+
+        try {
+            int connectMs = read ? 3500 : 4000;
+            int readMs = interactive ? 12000 : (read ? 7500 : 12000);
+            int attempts = read ? 2 : 1;
+            Exception last = null;
+            for (int i=0;i<attempts;i++) {
+                try {
+                    JSONObject result = postTo(api(),body,connectMs,readMs);
+                    ensureOk(result);
+                    return result;
+                } catch (Exception e) {
+                    last = e;
+                    if (i+1<attempts) {
+                        try { Thread.sleep(250L); }
+                        catch (InterruptedException interrupted) { Thread.currentThread().interrupt(); break; }
+                    }
+                }
+            }
+            throw last == null ? new Exception("No se pudo conectar con el servidor") : last;
+        } finally {
+            if (reservationCreate) {
+                synchronized (reservationCreateGuard) {
+                    reservationCreateInFlight = false;
                 }
             }
         }
-        throw last == null ? new Exception("No se pudo conectar con el servidor") : last;
+    }
+
+    private String reservationFingerprint(JSONObject body) {
+        if (body == null) return "";
+        return norm(body.optString("fecha","")) + "|"
+                + norm(body.optString("hora","")) + "|"
+                + norm(body.optString("nombre","")) + "|"
+                + norm(body.optString("telefono","")) + "|"
+                + norm(body.optString("correo","")) + "|"
+                + body.optInt("personas",0) + "|"
+                + norm(body.optString("mesa","")) + "|"
+                + norm(body.optString("zona","")) + "|"
+                + norm(body.optString("observaciones","")) + "|"
+                + norm(body.optString("terminal",terminal()));
+    }
+
+    private static String norm(String value) {
+        return value == null ? "" : value.trim().toLowerCase();
     }
 
     /** Compatibilidad para pruebas de endpoint desde Ajustes. */
