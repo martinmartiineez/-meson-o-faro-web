@@ -1,4 +1,4 @@
-// O Faro Gestión v5.0.0-alpha4 · previsualización QR y selector de plantillas
+// O Faro Gestión v5.0.0-alpha5 · pulido visual global
 plugins { id 'com.android.application' }
 
 android {
@@ -13,8 +13,8 @@ android {
         applicationId 'com.ofaro.participaciones'
         minSdk 26
         targetSdk 35
-        versionCode 17
-        versionName '5.0.0-alpha4'
+        versionCode 18
+        versionName '5.0.0-alpha5'
     }
 
     signingConfigs {
