@@ -1,4 +1,4 @@
-// O Faro Gestión v5.0.0-alpha6 · navegación más discreta y pulido de reservas
+// O Faro Gestión v5.0.0-alpha7 · protección contra reservas y correos duplicados
 plugins { id 'com.android.application' }
 
 android {
@@ -13,8 +13,8 @@ android {
         applicationId 'com.ofaro.participaciones'
         minSdk 26
         targetSdk 35
-        versionCode 19
-        versionName '5.0.0-alpha6'
+        versionCode 20
+        versionName '5.0.0-alpha7'
     }
 
     signingConfigs {
