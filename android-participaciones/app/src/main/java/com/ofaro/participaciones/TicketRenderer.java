@@ -156,7 +156,7 @@ final class TicketRenderer {
     }
     private static float bottomDecoration(Canvas c,Paint p,String f,String t,float y,int w,int m,int paper){
         if("coupon".equals(f)||"event".equals(f))return perforation(c,p,y,w,m)+8;
-        if("retro".equals(f)){p.setStrokeWidth(3);c.drawLine(m,y,w-m,y);c.drawLine(m,y+6,w-m,y+6,p);return y+14;}
+        if("retro".equals(f)){p.setStrokeWidth(3);c.drawLine(m,y,w-m,y,p);c.drawLine(m,y+6,w-m,y+6,p);return y+14;}
         if("gift".equals(f)){p.setStyle(Paint.Style.STROKE);p.setStrokeWidth(3);c.drawRoundRect(new RectF(m,y,w-m,y+18),9,9,p);p.setStyle(Paint.Style.FILL);return y+26;}
         return y;
     }
