@@ -41,9 +41,19 @@ final class TicketRenderer {
         String imageData = job.optString("imageData","");
         int imagePct = clamp(job.optInt("imageWidthPercent",75),25,100);
         Bitmap image = decodeImage(imageData);
-        if(image==null && imageData!=null && !imageData.trim().isEmpty()) {
-            throw new Exception("La imagen seleccionada no se pudo procesar.");
-        }
+        if(image==null && imageData!=null && !imageData.trim().isEmpty()) throw new Exception("La imagen seleccionada no se pudo procesar.");
+
+        Bitmap image1 = decodeImage(job.optString("image1Data",""));
+        Bitmap image2 = decodeImage(job.optString("image2Data",""));
+        if(image1==null && !job.optString("image1Data","").trim().isEmpty()) throw new Exception("La imagen 1 de la plantilla no se pudo procesar.");
+        if(image2==null && !job.optString("image2Data","").trim().isEmpty()) throw new Exception("La imagen 2 de la plantilla no se pudo procesar.");
+
+        String image1Pos=safe(job.optString("image1Position","header"));
+        String image2Pos=safe(job.optString("image2Position","footer"));
+        String image1Align=safe(job.optString("image1Align","center"));
+        String image2Align=safe(job.optString("image2Align","center"));
+        int image1Pct=clamp(job.optInt("image1WidthPercent",55),25,100);
+        int image2Pct=clamp(job.optInt("image2WidthPercent",55),25,100);
 
         Bitmap work = Bitmap.createBitmap(width,MAX_HEIGHT,Bitmap.Config.ARGB_8888);
         Canvas c = new Canvas(work); c.drawColor(Color.WHITE);
@@ -53,13 +63,16 @@ final class TicketRenderer {
 
         try {
             if ("image".equals(family)) {
-                if (image != null) y = drawImage(c,image,y,width,margin,imagePct) + 18;
-                else y = drawCentered(c,p,"SIN IMAGEN",y,contentW,margin,paper<=58?26:34,true)+20;
-                ensureFits(y);
-                return crop(work,(int)Math.max(100,y));
+                boolean any=false;
+                if(image1!=null){y=drawImage(c,image1,y,width,margin,image1Pct,image1Align)+18;any=true;}
+                if(image2!=null){y=drawImage(c,image2,y,width,margin,image2Pct,image2Align)+18;any=true;}
+                if(!any && image!=null)y=drawImage(c,image,y,width,margin,imagePct)+18;
+                else if(!any)y=drawCentered(c,p,"SIN IMAGEN",y,contentW,margin,paper<=58?26:34,true)+20;
+                ensureFits(y);return crop(work,(int)Math.max(100,y));
             }
 
             y = topDecoration(c,p,family,template,y,width,margin,paper);
+            y=drawCustomAt(c,y,width,margin,"header",image1,image1Pos,image1Pct,image1Align,image2,image2Pos,image2Pct,image2Align);
             if (image != null && "top".equalsIgnoreCase(imagePos)) y = drawImage(c,image,y,width,margin,imagePct)+18;
 
             if ("promo".equals(family) || "wheel".equals(family) || "scratch".equals(family) || "impact".equals(family)) {
@@ -72,22 +85,26 @@ final class TicketRenderer {
                 if(!subtitle.isEmpty()) y=drawCentered(c,p,subtitle.toUpperCase(),y,contentW,margin,subtitleSize(paper,family),"elegant".equals(family)||"editorial".equals(family))+5;
             }
 
-            if((!title.isEmpty()||!subtitle.isEmpty()) && !"promo".equals(family) && !"wheel".equals(family) && !"scratch".equals(family) && !"impact".equals(family))
-                y=drawSeparator(c,p,y,width,margin,separator,family)+12;
+            if((!title.isEmpty()||!subtitle.isEmpty()) && !"promo".equals(family) && !"wheel".equals(family) && !"scratch".equals(family) && !"impact".equals(family)) y=drawSeparator(c,p,y,width,margin,separator,family)+12;
+            y=drawCustomAt(c,y,width,margin,"below_title",image1,image1Pos,image1Pct,image1Align,image2,image2Pos,image2Pct,image2Align);
 
             if (isQrFamily(family,template)) {
                 if(!body.isEmpty()) y=drawBody(c,p,body,y,contentW,margin,bodySize(paper),typography,centerBody(family))+8;
+                y=drawCustomAt(c,y,width,margin,"body",image1,image1Pos,image1Pct,image1Align,image2,image2Pos,image2Pct,image2Align);
                 if(!qr.isEmpty()) y=drawQr(c,qr,y,width,margin,qrPx(qrSize,paper))+10;
             } else if ("event".equals(family)) {
                 if(!body.isEmpty()) y=drawBody(c,p,body,y,contentW,margin,bodySize(paper),typography,false)+10;
+                y=drawCustomAt(c,y,width,margin,"body",image1,image1Pos,image1Pct,image1Align,image2,image2Pos,image2Pct,image2Align);
                 y=perforation(c,p,y,width,margin)+12;
                 if(!qr.isEmpty()) y=drawQr(c,qr,y,width,margin,qrPx(qrSize,paper))+10;
             } else {
                 if(!body.isEmpty()) y=drawBody(c,p,body,y,contentW,margin,bodySize(paper),typography,false)+12;
+                y=drawCustomAt(c,y,width,margin,"body",image1,image1Pos,image1Pct,image1Align,image2,image2Pos,image2Pct,image2Align);
                 if(!qr.isEmpty()) y=drawQr(c,qr,y,width,margin,qrPx(qrSize,paper))+10;
             }
 
             if (image != null && "bottom".equalsIgnoreCase(imagePos)) y=drawImage(c,image,y,width,margin,imagePct)+18;
+            y=drawCustomAt(c,y,width,margin,"footer",image1,image1Pos,image1Pct,image1Align,image2,image2Pos,image2Pct,image2Align);
             y=bottomDecoration(c,p,family,template,y,width,margin,paper);
             y=drawFooter(c,p,y,width,margin,paper,family)+22;
             y=finishFrame(c,p,family,y,width);
@@ -95,8 +112,16 @@ final class TicketRenderer {
             return crop(work,(int)Math.max(120,y));
         } finally {
             if(image!=null&&!image.isRecycled()) image.recycle();
+            if(image1!=null&&!image1.isRecycled()) image1.recycle();
+            if(image2!=null&&!image2.isRecycled()) image2.recycle();
             if(work!=null && !work.isRecycled()) work.recycle();
         }
+    }
+
+    private static float drawCustomAt(Canvas c,float y,int w,int m,String point,Bitmap i1,String p1,int pct1,String a1,Bitmap i2,String p2,int pct2,String a2){
+        if(i1!=null&&point.equalsIgnoreCase(p1))y=drawImage(c,i1,y,w,m,pct1,a1)+14;
+        if(i2!=null&&point.equalsIgnoreCase(p2))y=drawImage(c,i2,y,w,m,pct2,a2)+14;
+        return y;
     }
 
     private static String family(String t){
@@ -122,7 +147,6 @@ final class TicketRenderer {
     private static boolean centerBody(String f){return "qr".equals(f);}
 
     private static float topDecoration(Canvas c,Paint p,String f,String t,float y,int w,int m,int paper){
-        // El marco de entradas/tarjetas se cierra al final, cuando ya conocemos la altura real.
         if("event".equals(f)||"card".equals(f))return 34;
         if("retro".equals(f)){p.setStrokeWidth(3);c.drawLine(m,16,w-m,16,p);c.drawLine(m,22,w-m,22,p);return 36;}
         if("coupon".equals(f)){return perforation(c,p,12,w,m)+10;}
@@ -132,34 +156,16 @@ final class TicketRenderer {
     }
     private static float bottomDecoration(Canvas c,Paint p,String f,String t,float y,int w,int m,int paper){
         if("coupon".equals(f)||"event".equals(f))return perforation(c,p,y,w,m)+8;
-        if("retro".equals(f)){p.setStrokeWidth(3);c.drawLine(m,y,w-m,y,p);c.drawLine(m,y+6,w-m,y+6,p);return y+14;}
+        if("retro".equals(f)){p.setStrokeWidth(3);c.drawLine(m,y,w-m,y);c.drawLine(m,y+6,w-m,y+6,p);return y+14;}
         if("gift".equals(f)){p.setStyle(Paint.Style.STROKE);p.setStrokeWidth(3);c.drawRoundRect(new RectF(m,y,w-m,y+18),9,9,p);p.setStyle(Paint.Style.FILL);return y+26;}
         return y;
     }
     private static float finishFrame(Canvas c,Paint p,String family,float y,int width){
         if(!"event".equals(family)&&!"card".equals(family))return y;
-        float bottom=y+8;
-        p.setColor(Color.BLACK);p.setStyle(Paint.Style.STROKE);p.setStrokeWidth(4);
-        c.drawRoundRect(new RectF(10,10,width-10,bottom),20,20,p);
-        p.setStyle(Paint.Style.FILL);
-        return bottom+8;
+        float bottom=y+8;p.setColor(Color.BLACK);p.setStyle(Paint.Style.STROKE);p.setStrokeWidth(4);c.drawRoundRect(new RectF(10,10,width-10,bottom),20,20,p);p.setStyle(Paint.Style.FILL);return bottom+8;
     }
     private static float drawBandHeader(Canvas c,Paint p,String title,String subtitle,float y,int w,int m,int paper,String typography){
-        int titlePx=paper<=58?30:38;
-        int subtitlePx=paper<=58?17:21;
-        p.setTypeface(typeface(typography,true));p.setTextSize(titlePx);
-        List<String> lines=title.isEmpty()?new ArrayList<>():wrap(p,title.toUpperCase(),w-m*4);
-        float topPad=paper<=58?20:24;
-        float lineStep=paper<=58?34:42;
-        float subtitleBlock=subtitle.isEmpty()?14:(paper<=58?36:43);
-        float h=Math.max(paper<=58?86:104,topPad+Math.max(1,lines.size())*lineStep+subtitleBlock);
-        if(y+h+BOTTOM_SAFETY>MAX_HEIGHT)throw new IllegalStateException("El encabezado del ticket es demasiado largo.");
-        p.setColor(Color.BLACK);c.drawRoundRect(new RectF(m,y,w-m,y+h),16,16,p);
-        p.setColor(Color.WHITE);p.setTextAlign(Paint.Align.CENTER);p.setTypeface(typeface(typography,true));p.setTextSize(titlePx);
-        float yy=y+topPad+titlePx;
-        for(String line:lines){c.drawText(line,w/2f,yy,p);yy+=lineStep;}
-        if(!subtitle.isEmpty()){p.setTextSize(subtitlePx);p.setTypeface(typeface(typography,true));c.drawText(subtitle.toUpperCase(),w/2f,y+h-16,p);}
-        p.setTextAlign(Paint.Align.LEFT);p.setColor(Color.BLACK);return y+h;
+        int titlePx=paper<=58?30:38,subtitlePx=paper<=58?17:21;p.setTypeface(typeface(typography,true));p.setTextSize(titlePx);List<String> lines=title.isEmpty()?new ArrayList<>():wrap(p,title.toUpperCase(),w-m*4);float topPad=paper<=58?20:24,lineStep=paper<=58?34:42,subtitleBlock=subtitle.isEmpty()?14:(paper<=58?36:43);float h=Math.max(paper<=58?86:104,topPad+Math.max(1,lines.size())*lineStep+subtitleBlock);if(y+h+BOTTOM_SAFETY>MAX_HEIGHT)throw new IllegalStateException("El encabezado del ticket es demasiado largo.");p.setColor(Color.BLACK);c.drawRoundRect(new RectF(m,y,w-m,y+h),16,16,p);p.setColor(Color.WHITE);p.setTextAlign(Paint.Align.CENTER);p.setTypeface(typeface(typography,true));p.setTextSize(titlePx);float yy=y+topPad+titlePx;for(String line:lines){c.drawText(line,w/2f,yy,p);yy+=lineStep;}if(!subtitle.isEmpty()){p.setTextSize(subtitlePx);p.setTypeface(typeface(typography,true));c.drawText(subtitle.toUpperCase(),w/2f,y+h-16,p);}p.setTextAlign(Paint.Align.LEFT);p.setColor(Color.BLACK);return y+h;
     }
     private static float drawFooter(Canvas c,Paint p,float y,int w,int m,int paper,String f){p.setTextAlign(Paint.Align.CENTER);p.setTypeface(Typeface.create("sans-serif",Typeface.BOLD));p.setTextSize(paper<=58?12:15);p.setColor(Color.DKGRAY);c.drawText("MESÓN O FARO",w/2f,y+14,p);p.setColor(Color.BLACK);p.setTextAlign(Paint.Align.LEFT);return y+20;}
     private static float perforation(Canvas c,Paint p,float y,int w,int m){p.setStrokeWidth(2);p.setPathEffect(new DashPathEffect(new float[]{8,8},0));c.drawLine(m,y+5,w-m,y+5,p);p.setPathEffect(null);c.drawCircle(m,y+5,6,p);c.drawCircle(w-m,y+5,6,p);return y+10;}
@@ -167,23 +173,9 @@ final class TicketRenderer {
     private static float drawCentered(Canvas c,Paint p,String text,float y,int maxW,int x,int size,boolean bold){p.setTextSize(size);p.setTypeface(Typeface.create(p.getTypeface(),bold?Typeface.BOLD:Typeface.NORMAL));p.setTextAlign(Paint.Align.CENTER);float line=size*1.24f;for(String s:wrap(p,text,maxW)){y+=size;if(y+BOTTOM_SAFETY>MAX_HEIGHT)throw new IllegalStateException("El texto del ticket es demasiado largo.");c.drawText(s,x+maxW/2f,y,p);y+=line-size;}p.setTextAlign(Paint.Align.LEFT);return y;}
     private static float drawBody(Canvas c,Paint p,String text,float y,int maxW,int x,int size,String typography,boolean centered){p.setTextSize(size);p.setTypeface(typeface(typography,false));p.setTextAlign(centered?Paint.Align.CENTER:Paint.Align.LEFT);float line=size*1.35f;for(String para:text.split("\\n",-1)){if(para.trim().isEmpty()){y+=line*.6f;continue;}for(String s:wrap(p,para,maxW)){y+=size;if(y+BOTTOM_SAFETY>MAX_HEIGHT)throw new IllegalStateException("El texto del ticket es demasiado largo.");c.drawText(s,centered?x+maxW/2f:x,y,p);y+=line-size;}}p.setTextAlign(Paint.Align.LEFT);return y;}
     private static float drawBox(Canvas c,Paint p,String text,float y,int w,int m,int size,String typography){p.setTypeface(typeface(typography,true));p.setTextSize(size);List<String> lines=wrap(p,text,w-m*4);float h=lines.size()*size*1.32f+28;if(y+h+BOTTOM_SAFETY>MAX_HEIGHT)throw new IllegalStateException("El subtítulo del ticket es demasiado largo.");p.setStyle(Paint.Style.STROKE);p.setStrokeWidth(3);c.drawRoundRect(new RectF(m,y,w-m,y+h),15,15,p);p.setStyle(Paint.Style.FILL);p.setTextAlign(Paint.Align.CENTER);float yy=y+17;for(String s:lines){yy+=size;c.drawText(s,w/2f,yy,p);yy+=size*.32f;}p.setTextAlign(Paint.Align.LEFT);return y+h;}
-    private static float drawImage(Canvas c,Bitmap img,float y,int w,int m,int pct){
-        int avail=w-m*2,target=Math.max(48,avail*pct/100);
-        float heightAvailable=Math.max(48f,MAX_HEIGHT-y-BOTTOM_SAFETY-24);
-        float scale=Math.min(target/(float)Math.max(1,img.getWidth()),heightAvailable/Math.max(1f,img.getHeight()));
-        if(scale<=0f)throw new IllegalStateException("No queda espacio para la imagen en el ticket.");
-        int iw=Math.max(1,Math.round(img.getWidth()*scale)),ih=Math.max(1,Math.round(img.getHeight()*scale));
-        if(y+ih+BOTTOM_SAFETY>MAX_HEIGHT)throw new IllegalStateException("La imagen hace que el ticket sea demasiado largo.");
-        float left=(w-iw)/2f;c.drawBitmap(img,null,new RectF(left,y,left+iw,y+ih),new Paint(Paint.ANTI_ALIAS_FLAG|Paint.FILTER_BITMAP_FLAG));return y+ih;
-    }
-    private static float drawQr(Canvas c,String data,float y,int w,int m,int size)throws Exception{
-        size=Math.min(size,w-m*2);
-        if(y+size+BOTTOM_SAFETY>MAX_HEIGHT)throw new Exception("El QR no cabe en el ticket. Reduce contenido o tamaño.");
-        BitMatrix matrix=new MultiFormatWriter().encode(data,BarcodeFormat.QR_CODE,size,size);
-        Bitmap qr=Bitmap.createBitmap(size,size,Bitmap.Config.ARGB_8888);
-        try{for(int yy=0;yy<size;yy++)for(int xx=0;xx<size;xx++)qr.setPixel(xx,yy,matrix.get(xx,yy)?Color.BLACK:Color.WHITE);c.drawBitmap(qr,(w-size)/2f,y,null);}finally{if(!qr.isRecycled())qr.recycle();}
-        return y+size;
-    }
+    private static float drawImage(Canvas c,Bitmap img,float y,int w,int m,int pct){return drawImage(c,img,y,w,m,pct,"center");}
+    private static float drawImage(Canvas c,Bitmap img,float y,int w,int m,int pct,String align){int avail=w-m*2,target=Math.max(48,avail*pct/100);float heightAvailable=Math.max(48f,MAX_HEIGHT-y-BOTTOM_SAFETY-24);float scale=Math.min(target/(float)Math.max(1,img.getWidth()),heightAvailable/Math.max(1f,img.getHeight()));if(scale<=0f)throw new IllegalStateException("No queda espacio para la imagen en el ticket.");int iw=Math.max(1,Math.round(img.getWidth()*scale)),ih=Math.max(1,Math.round(img.getHeight()*scale));if(y+ih+BOTTOM_SAFETY>MAX_HEIGHT)throw new IllegalStateException("La imagen hace que el ticket sea demasiado largo.");float left;if("left".equalsIgnoreCase(align))left=m;else if("right".equalsIgnoreCase(align))left=w-m-iw;else left=(w-iw)/2f;c.drawBitmap(img,null,new RectF(left,y,left+iw,y+ih),new Paint(Paint.ANTI_ALIAS_FLAG|Paint.FILTER_BITMAP_FLAG));return y+ih;}
+    private static float drawQr(Canvas c,String data,float y,int w,int m,int size)throws Exception{size=Math.min(size,w-m*2);if(y+size+BOTTOM_SAFETY>MAX_HEIGHT)throw new Exception("El QR no cabe en el ticket. Reduce contenido o tamaño.");BitMatrix matrix=new MultiFormatWriter().encode(data,BarcodeFormat.QR_CODE,size,size);Bitmap qr=Bitmap.createBitmap(size,size,Bitmap.Config.ARGB_8888);try{for(int yy=0;yy<size;yy++)for(int xx=0;xx<size;xx++)qr.setPixel(xx,yy,matrix.get(xx,yy)?Color.BLACK:Color.WHITE);c.drawBitmap(qr,(w-size)/2f,y,null);}finally{if(!qr.isRecycled())qr.recycle();}return y+size;}
     private static List<String> wrap(Paint p,String text,int maxW){List<String> out=new ArrayList<>();String clean=text==null?"":text.trim();if(clean.isEmpty()){out.add("");return out;}String[] words=clean.split("\\s+");String line="";for(String word:words){String test=line.isEmpty()?word:line+" "+word;if(p.measureText(test)<=maxW)line=test;else{if(!line.isEmpty())out.add(line);if(p.measureText(word)<=maxW)line=word;else{String part="";for(int i=0;i<word.length();i++){String t=part+word.charAt(i);if(p.measureText(t)>maxW&&!part.isEmpty()){out.add(part);part="";}part+=word.charAt(i);}line=part;}}}if(!line.isEmpty())out.add(line);return out;}
     private static Typeface typeface(String preset,boolean bold){String s=safe(preset).toLowerCase(),fam="sans-serif";int style=bold?Typeface.BOLD:Typeface.NORMAL;if(s.contains("editorial")||s.contains("elegante"))fam="serif";else if(s.contains("retro")||s.contains("clásico")||s.contains("clasico"))fam="monospace";else if(s.contains("minimal"))fam="sans-serif-light";else if(s.contains("o faro"))fam="sans-serif-condensed";else if(s.contains("promocional")||s.contains("impacto")){fam="sans-serif-black";style=Typeface.BOLD;}return Typeface.create(fam,style);}
     private static int titleSize(int paper,String f){int b=paper<=58?31:40;if("event".equals(f)||"prize".equals(f))return b+4;if("minimal".equals(f))return b-3;return b;}
