@@ -9,10 +9,11 @@ import java.util.List;
 /**
  * Plantillas creadas por el usuario en este terminal.
  * Solo guardan estilo/configuración: nunca datos de clientes ni contenido dinámico.
+ * Desde alpha9 pueden incluir hasta dos imágenes optimizadas embebidas en el propio preset.
  */
 final class V5TemplateStore {
     static final String PREF_KEY = "local_templates_v5";
-    static final String FORMAT = "ofaro-template-v1";
+    static final String FORMAT = "ofaro-template-v2";
 
     private V5TemplateStore() {}
 
@@ -46,6 +47,14 @@ final class V5TemplateStore {
                     .put("paperWidth", paperWidth <= 58 ? 58 : 80)
                     .put("separator", safe(separator, "line"))
                     .put("qrSize", safe(qrSize, "L"))
+                    .put("image1Data", "")
+                    .put("image1Position", "header")
+                    .put("image1Align", "center")
+                    .put("image1WidthPercent", 55)
+                    .put("image2Data", "")
+                    .put("image2Position", "footer")
+                    .put("image2Align", "center")
+                    .put("image2WidthPercent", 55)
                     .put("createdAt", now)
                     .put("updatedAt", now);
         } catch (Exception ignored) {}
@@ -54,13 +63,20 @@ final class V5TemplateStore {
 
     static JSONObject duplicate(JSONObject source) {
         if (source == null) return create("Mi plantilla", "Minimal Premium", 80, "line", "L");
-        JSONObject x = create(
-                source.optString("name", "Mi plantilla") + " · copia",
-                source.optString("baseTemplate", "Minimal Premium"),
-                source.optInt("paperWidth", 80),
-                source.optString("separator", "line"),
-                source.optString("qrSize", "L"));
-        return x;
+        long now = System.currentTimeMillis();
+        try {
+            JSONObject x = new JSONObject(source.toString());
+            x.put("id", "LOCAL-" + now)
+                    .put("name", cleanName(source.optString("name", "Mi plantilla")) + " · copia")
+                    .put("createdAt", now)
+                    .put("updatedAt", now);
+            return x;
+        } catch (Exception ignored) {
+            return create(source.optString("name", "Mi plantilla") + " · copia",
+                    source.optString("baseTemplate", "Minimal Premium"),
+                    source.optInt("paperWidth", 80), source.optString("separator", "line"),
+                    source.optString("qrSize", "L"));
+        }
     }
 
     static void save(AppCore core, JSONObject template) {
@@ -98,7 +114,22 @@ final class V5TemplateStore {
             job.put("paperWidth", template.optInt("paperWidth", job.optInt("paperWidth", 80)) <= 58 ? 58 : 80);
             job.put("separator", template.optString("separator", job.optString("separator", "line")));
             job.put("qrSize", template.optString("qrSize", job.optString("qrSize", "L")));
+            copyImage(template, job, 1);
+            copyImage(template, job, 2);
         } catch (Exception ignored) {}
+    }
+
+    private static void copyImage(JSONObject source, JSONObject job, int slot) throws Exception {
+        String p = "image" + slot;
+        String data = source.optString(p + "Data", "");
+        if (data.isEmpty()) {
+            job.remove(p + "Data");
+            return;
+        }
+        job.put(p + "Data", data)
+                .put(p + "Position", source.optString(p + "Position", slot == 1 ? "header" : "footer"))
+                .put(p + "Align", source.optString(p + "Align", "center"))
+                .put(p + "WidthPercent", clamp(source.optInt(p + "WidthPercent", 55), 25, 100));
     }
 
     static String exportJson(JSONObject template) {
@@ -137,4 +168,6 @@ final class V5TemplateStore {
         String v = s == null ? "" : s.trim();
         return v.isEmpty() ? fallback : v;
     }
+
+    private static int clamp(int v, int min, int max) { return Math.max(min, Math.min(max, v)); }
 }
