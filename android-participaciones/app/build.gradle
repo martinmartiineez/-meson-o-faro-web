@@ -1,4 +1,4 @@
-// O Faro Gestión v5.0.0-alpha9 · dos imágenes posicionables por plantilla
+// O Faro Gestión v5.0.0 · versión integrada
 plugins { id 'com.android.application' }
 
 android {
@@ -13,8 +13,8 @@ android {
         applicationId 'com.ofaro.participaciones'
         minSdk 26
         targetSdk 35
-        versionCode 22
-        versionName '5.0.0-alpha9'
+        versionCode 30
+        versionName '5.0.0'
     }
 
     signingConfigs {
