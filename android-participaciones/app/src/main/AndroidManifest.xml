@@ -34,6 +34,7 @@
         <activity android:name=".StatsDashboardActivity" android:exported="false" android:screenOrientation="portrait" />
         <activity android:name=".FreePrintActivity" android:exported="false" android:screenOrientation="portrait" />
         <activity android:name=".BackupRestoreActivity" android:exported="false" android:screenOrientation="portrait" />
+        <activity android:name=".InternalAlertsActivity" android:exported="false" android:screenOrientation="portrait" />
         <activity android:name=".HomeActivityV2" android:exported="false" android:screenOrientation="portrait" />
 
         <activity
@@ -52,7 +53,7 @@
             android:foregroundServiceType="specialUse">
             <property
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
-                android:value="Mantiene la conexión local TCP con la impresora térmica ESC/POS de Mesón O Faro" />
+                android:value="Mantiene la conexión local TCP con la impresora térmica y el monitor de alertas operativas de Mesón O Faro" />
         </service>
 
         <receiver
