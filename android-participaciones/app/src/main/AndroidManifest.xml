@@ -30,6 +30,7 @@
         <activity android:name=".V5SectionActivity" android:exported="false" android:screenOrientation="portrait" />
         <activity android:name=".V5ImagePickerActivity" android:exported="false" android:screenOrientation="portrait" />
         <activity android:name=".V5TemplateManagerActivity" android:exported="false" android:screenOrientation="portrait" />
+        <activity android:name=".PrintQueueActivity" android:exported="false" android:screenOrientation="portrait" />
 
         <activity
             android:name=".HomeActivityV2"
