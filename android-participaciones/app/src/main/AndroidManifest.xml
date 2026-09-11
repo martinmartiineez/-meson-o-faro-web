@@ -31,9 +31,13 @@
         <activity android:name=".V5ImagePickerActivity" android:exported="false" android:screenOrientation="portrait" />
         <activity android:name=".V5TemplateManagerActivity" android:exported="false" android:screenOrientation="portrait" />
         <activity android:name=".PrintQueueActivity" android:exported="false" android:screenOrientation="portrait" />
+        <activity android:name=".StatsDashboardActivity" android:exported="false" android:screenOrientation="portrait" />
+        <activity android:name=".FreePrintActivity" android:exported="false" android:screenOrientation="portrait" />
+        <activity android:name=".BackupRestoreActivity" android:exported="false" android:screenOrientation="portrait" />
+        <activity android:name=".HomeActivityV2" android:exported="false" android:screenOrientation="portrait" />
 
         <activity
-            android:name=".HomeActivityV2"
+            android:name=".HomeActivityFinal"
             android:exported="true"
             android:screenOrientation="portrait">
             <intent-filter>
