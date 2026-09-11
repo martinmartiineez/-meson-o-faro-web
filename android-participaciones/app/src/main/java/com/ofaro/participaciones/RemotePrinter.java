@@ -10,12 +10,40 @@ import java.io.OutputStream;
 /**
  * Única ruta de impresión de producción.
  * Lo que se previsualiza con TicketRenderer es exactamente lo que se rasteriza.
+ * Cada trabajo queda registrado localmente para diagnóstico y reintento manual.
  */
 final class RemotePrinter {
     private static final int MAX_IMAGE_DOTS = 576;
     private RemotePrinter() {}
 
     static void print(AppCore core,JSONObject job)throws Exception{
+        JSONObject record=PrintJobStore.create(core,job);
+        try{
+            record=PrintJobStore.markSending(core,record);
+            printDirect(core,job);
+            PrintJobStore.markSent(core,record);
+        }catch(Exception e){
+            PrintJobStore.markError(core,record,e);
+            throw e;
+        }
+    }
+
+    static void retry(AppCore core,String jobId)throws Exception{
+        JSONObject record=PrintJobStore.get(core,jobId);
+        if(record==null)throw new Exception("No se encontró el trabajo de impresión.");
+        JSONObject job=PrintJobStore.job(record);
+        if(job.length()==0)throw new Exception("El trabajo no contiene datos para reimprimir.");
+        try{
+            record=PrintJobStore.markSending(core,record);
+            printDirect(core,job);
+            PrintJobStore.markSent(core,record);
+        }catch(Exception e){
+            PrintJobStore.markError(core,record,e);
+            throw e;
+        }
+    }
+
+    private static void printDirect(AppCore core,JSONObject job)throws Exception{
         String ip=core.printerIp();
         int port=core.printerPort();
         if(ip==null||ip.trim().isEmpty())throw new Exception("Configura la IP de la impresora antes de imprimir.");
@@ -55,7 +83,6 @@ final class RemotePrinter {
                 int px=b.getPixel(x,y);
                 int alpha=Color.alpha(px);
                 int gray=(Color.red(px)*30+Color.green(px)*59+Color.blue(px)*11)/100;
-                // Dither mínimo para fotos, sin ensuciar QR/texto.
                 int local=threshold+((((x+y)&1)==0)?-5:5);
                 if(alpha>70&&gray<local)data[y*widthBytes+(x/8)]|=(byte)(0x80>>(x%8));
             }
@@ -68,9 +95,7 @@ final class RemotePrinter {
 
     private static void init(OutputStream out)throws Exception{out.write(new byte[]{0x1B,0x40});}
     private static void align(OutputStream out,int mode)throws Exception{out.write(new byte[]{0x1B,0x61,(byte)mode});}
-    private static void feed(OutputStream out,int lines)throws Exception{
-        for(int i=0;i<lines;i++)out.write('\n');
-    }
+    private static void feed(OutputStream out,int lines)throws Exception{for(int i=0;i<lines;i++)out.write('\n');}
     private static void cut(OutputStream out,String mode)throws Exception{
         String m=mode==null?"full":mode.trim().toLowerCase();
         if("none".equals(m))return;
