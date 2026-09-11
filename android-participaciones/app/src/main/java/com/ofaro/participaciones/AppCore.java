@@ -20,13 +20,16 @@ import java.io.BufferedReader;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
+import java.net.ConnectException;
 import java.net.HttpURLConnection;
 import java.net.SocketTimeoutException;
+import java.net.UnknownHostException;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.UUID;
 
 /** Núcleo único de la APK. Red, caché, configuración e impresión local. */
 final class AppCore {
@@ -76,6 +79,7 @@ final class AppCore {
         if (!prefs.contains("printerCut")) prefs.edit().putString("printerCut", "full").apply();
         if (!prefs.contains("printerFeed")) prefs.edit().putInt("printerFeed", 3).apply();
         if (!prefs.contains("printerDarkness")) prefs.edit().putInt("printerDarkness", 180).apply();
+        if (!prefs.contains("terminal")) prefs.edit().putString("terminal", "Caja O Faro").apply();
     }
 
     Context context() { return context; }
@@ -98,19 +102,23 @@ final class AppCore {
     boolean configured() { return !api().isEmpty() && !key().isEmpty(); }
 
     JSONObject action(String action) throws Exception {
+        long now=System.currentTimeMillis();
         return new JSONObject()
                 .put("action", action)
                 .put("key", key())
                 .put("terminal", terminal())
                 .put("appVersion", APP_VERSION)
-                .put("printerIp", printerIp());
+                .put("printerIp", printerIp())
+                .put("requestId", UUID.randomUUID().toString())
+                .put("clientTimestamp", now);
     }
 
     /**
      * Política única de red:
      * - lecturas: rápida, un único reintento si falla transporte;
      * - acciones interactivas/escrituras: nunca se reintentan automáticamente;
-     * - reservationCreate: bloquea dobles pulsaciones y reenvíos idénticos durante 20 s;
+     * - cada petición lleva requestId para idempotencia del servidor;
+     * - reservationCreate conserva además defensa local contra doble pulsación;
      * - ninguna petición puede dejar la interfaz esperando 25-50 s.
      */
     JSONObject post(JSONObject body) throws Exception {
@@ -187,6 +195,7 @@ final class AppCore {
 
     private JSONObject postTo(String endpoint, JSONObject body, int connectMs, int readMs) throws Exception {
         if (endpoint == null || endpoint.trim().isEmpty()) throw new Exception("Endpoint vacío.");
+        if (!internetAvailable()) throw new Exception("No hay conexión a Internet.");
         HttpURLConnection conn = null;
         try {
             conn = (HttpURLConnection) new URL(endpoint.trim()).openConnection();
@@ -206,9 +215,11 @@ final class AppCore {
             InputStream stream = status >= 200 && status < 400 ? conn.getInputStream() : conn.getErrorStream();
             String text = readAll(stream).trim();
             if (text.isEmpty()) throw new Exception("El servidor no respondió (HTTP " + status + ").");
-            if (text.startsWith("<")) throw new Exception("Apps Script devolvió HTML en lugar de datos.");
+            if (text.startsWith("<")) throw new Exception("El servidor devolvió una respuesta inesperada. Revisa la implementación de Apps Script.");
             try { return new JSONObject(text); }
-            catch (Exception parse) { throw new Exception("Respuesta del servidor no válida."); }
+            catch (Exception parse) { throw new Exception("La respuesta del servidor no es válida."); }
+        } catch (UnknownHostException | ConnectException network) {
+            throw new Exception("No se puede contactar con el servidor. Comprueba la conexión a Internet.");
         } catch (SocketTimeoutException timeout) {
             throw new Exception("El servidor está tardando demasiado. Vuelve a intentarlo.");
         } finally {
