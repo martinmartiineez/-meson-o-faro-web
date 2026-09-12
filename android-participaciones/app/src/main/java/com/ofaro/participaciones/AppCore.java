@@ -37,6 +37,11 @@ final class AppCore {
     static final String DEFAULT_API = ApiEndpoint.URL;
     static final String APP_VERSION = BuildConfig.VERSION_NAME;
 
+    private static final String DEFAULT_PRIZE_TEMPLATE = "Entrada QR";
+    private static final String DEFAULT_PRIZE_TYPOGRAPHY = "Retro ticket";
+    private static final String DEFAULT_PRIZE_TITLE = "CÓDIGO PREMIADO";
+    private static final String DEFAULT_PRIZE_TEXT = "ESCANEA PARA JUGAR\nUN SOLO USO · 24 H PARA CANJEARLO\n\n¡SUERTE!";
+
     private static final Set<String> READ_ACTIONS = new HashSet<>(Arrays.asList(
             "appPing","participationPing","appBootstrap","reservationList",
             "qrList","templateList","historyList","webSections","webSectionRows",
@@ -80,6 +85,10 @@ final class AppCore {
         if (!prefs.contains("printerFeed")) prefs.edit().putInt("printerFeed", 3).apply();
         if (!prefs.contains("printerDarkness")) prefs.edit().putInt("printerDarkness", 180).apply();
         if (!prefs.contains("terminal")) prefs.edit().putString("terminal", "Caja O Faro").apply();
+        if (!prefs.contains("defaultTemplatePrize")) prefs.edit().putString("defaultTemplatePrize", DEFAULT_PRIZE_TEMPLATE).apply();
+        if (!prefs.contains("defaultTypographyPrize")) prefs.edit().putString("defaultTypographyPrize", DEFAULT_PRIZE_TYPOGRAPHY).apply();
+        if (!prefs.contains("defaultPrizeTitle")) prefs.edit().putString("defaultPrizeTitle", DEFAULT_PRIZE_TITLE).apply();
+        if (!prefs.contains("defaultPrizeText")) prefs.edit().putString("defaultPrizeText", DEFAULT_PRIZE_TEXT).apply();
     }
 
     Context context() { return context; }
@@ -314,6 +323,22 @@ final class AppCore {
     }
 
     void printQrTicket(String title,String text,String qrData)throws Exception{
+        boolean prizeTicket=safe(text).startsWith("ESCANEA PARA JUGAR");
+        if(prizeTicket){
+            String fallback=DEFAULT_PRIZE_TEMPLATE;
+            String initial=prefs.getString("defaultTemplatePrize",fallback);
+            String typography=prefs.getString("defaultTypographyPrize",DEFAULT_PRIZE_TYPOGRAPHY);
+            String prizeTitle=prefs.getString("defaultPrizeTitle",DEFAULT_PRIZE_TITLE);
+            String prizeText=prefs.getString("defaultPrizeText",DEFAULT_PRIZE_TEXT);
+            JSONObject job=basePrintJob()
+                    .put("templateId",initial)
+                    .put("typography",typography)
+                    .put("title",safe(prizeTitle)).put("subtitle","").put("text",safe(prizeText))
+                    .put("qr",safe(qrData)).put("qrSize","L").put("imagePosition","none");
+            previewAndPrint(job,"defaultTemplatePrize",fallback);
+            return;
+        }
+
         String fallback="QR Personalizado";
         String initial=prefs.getString("defaultTemplateQr",fallback);
         JSONObject job=basePrintJob()
