@@ -1,0 +1,29 @@
+{
+  "name": "meson-o-faro-seguridad",
+  "main": "src/worker.js",
+  "compatibility_date": "2026-10-08",
+  "workers_dev": false,
+  "assets": {
+    "directory": "./dist",
+    "binding": "ASSETS",
+    "run_worker_first": true
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "ofaro-analytics",
+      "database_id": "00000000-0000-0000-0000-000000000000",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "triggers": {
+    "crons": [
+      "0 3 * * *"
+    ]
+  },
+  "observability": {
+    "logs": {
+      "enabled": false
+    }
+  }
+}
