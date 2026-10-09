@@ -49,7 +49,7 @@ async function setting(env,key){
   const row=await env.DB.prepare('SELECT value FROM settings WHERE key = ?').bind(key).first();
   const num=Number(row && row.value);
   const fallback=DEFAULTS[key] || 7;
-  return Number.isInteger(num) ? Math.max(1,Math.min(key==='security_days'?30:365,num)) : fallback;
+  return Number.isInteger(num) ? Math.max(1,Math.min(key==='security_days'?30:180,num)) : fallback;
 }
 async function incident(env,req,kind,severity,status,message){
   if(!env.DB) return;
@@ -221,7 +221,7 @@ async function adminApi(req,env,path){
   }
   if(path==='settings'){
     const a=Number(body.security_days),b=Number(body.tracking_days);
-    if(!Number.isInteger(a)||a<1||a>30||!Number.isInteger(b)||b<1||b>365) return safeError('Conservación fuera de límites');
+    if(!Number.isInteger(a)||a<1||a>30||!Number.isInteger(b)||b<1||b>180) return safeError('Conservación fuera de límites');
     await env.DB.batch([
       env.DB.prepare("INSERT INTO settings(key,value) VALUES ('security_days',?) ON CONFLICT(key) DO UPDATE SET value=excluded.value").bind(String(a)),
       env.DB.prepare("INSERT INTO settings(key,value) VALUES ('tracking_days',?) ON CONFLICT(key) DO UPDATE SET value=excluded.value").bind(String(b))
