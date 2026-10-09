@@ -292,6 +292,20 @@ export default {
       if(!trustedRequest(req)) return safeError('Origen o formato no permitido',403);
       return path.endsWith('/consent')?consentEndpoint(req,env):eventEndpoint(req,env);
     }
+    if(path==='/admin.html'){
+      // Mantener el antiguo editor operativo, pero no accesible sin Cloudflare Access.
+      if(await isBlocked(env,req)) return safeError('Acceso denegado',403);
+      const identity=await adminIdentity(req,env);
+      if(!identity){
+        ctx.waitUntil(incident(env,req,'auth_denied','media',403,'Acceso a editor anterior sin autorización'));
+        return safeError('Acceso privado. Autenticación obligatoria.',403);
+      }
+      const legacy=await env.ASSETS.fetch(req);
+      const headers=new Headers(legacy.headers);
+      headers.set('Cache-Control','no-store');
+      headers.set('X-Content-Type-Options','nosniff');
+      return new Response(legacy.body,{status:legacy.status,headers});
+    }
     if(path.startsWith(PREFIX+'/admin')||path.startsWith(PREFIX+'/api/admin/')){
       if(await isBlocked(env,req)) {ctx.waitUntil(incident(env,req,'ip_blocked','media',403,'Acceso bloqueado'));return safeError('Acceso denegado',403);}
       const identity=await adminIdentity(req,env);
