@@ -10,9 +10,11 @@
     "dev": "npm run build && wrangler dev",
     "deploy": "npm run test && npm run build && wrangler deploy",
     "migrate:local": "wrangler d1 migrations apply mesonofaro-analytics --local",
-    "migrate:remote": "wrangler d1 migrations apply mesonofaro-analytics --remote"
+    "migrate:remote": "wrangler d1 migrations apply mesonofaro-analytics --remote",
+    "smoke:local": "npm run build && npm run migrate:local && node scripts/smoke-local.mjs"
   },
   "devDependencies": {
+    "jsdom": "^30.1.2",
     "wrangler": "^4.0.0"
   }
 }
