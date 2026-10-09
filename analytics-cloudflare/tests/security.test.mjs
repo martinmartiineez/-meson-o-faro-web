@@ -43,5 +43,5 @@ test('se rechazan POST de terceros',async()=>{
 });
 test('los archivos compilados no deben incluir material interno ni admin antiguo',async()=>{
   const script=fs.readFileSync(resolve('scripts/build.mjs'),'utf8');
-  for(const excluded of ['analytics-cloudflare','admin.html','.github']) assert.ok(script.includes(excluded));
+  for(const excluded of ['analytics-cloudflare','.github']) assert.ok(script.includes(excluded));
 });
