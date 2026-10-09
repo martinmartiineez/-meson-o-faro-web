@@ -7,7 +7,7 @@ function fixture(html='<html><body><main>Mesón O Faro</main></body></html>'){
   const DB={prepare(sql){return {bind(...args){queries.push({sql,args});return {first:async()=>null,run:async()=>({success:true}),all:async()=>({results:[]})};}}}};
   const ASSETS={fetch:async()=>new Response(html,{status:200,headers:{'content-type':'text/html; charset=utf-8'}})};
   const pending=[],ctx={waitUntil(p){pending.push(p)}};
-  return {env:{DB,ASSETS},pending,ctx,queries};
+  return {env:{DB,ASSETS,LOG_HMAC_SECRET:'unit-test-secret'},pending,ctx,queries};
 }
 test('se conserva el HTML original y se carga el módulo de privacidad',async()=>{
   const x=fixture();
