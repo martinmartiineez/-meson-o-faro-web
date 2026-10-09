@@ -1,25 +1,33 @@
-import {readdir,stat,copyFile,mkdir,rm} from 'node:fs/promises';
-import {resolve,join,relative,extname,dirname} from 'node:path';
-import {fileURLToPath} from 'node:url';
-const project=resolve(dirname(fileURLToPath(import.meta.url)),'..');
-const root=resolve(project,'..');
-const out=join(project,'dist');
-const allowed=new Set(['.html','.js','.css','.svg','.png','.jpg','.jpeg','.webp','.gif','.ico','.webmanifest','.json','.txt','.woff','.woff2']);
-const excluded=new Set(['.git','.github','analytics-cloudflare','node_modules','admin.html','README.md','CNAME']);
-let copied=0;
-await rm(out,{recursive:true,force:true});
+import { readdir, stat, copyFile, mkdir, rm, access } from 'node:fs/promises';
+import { resolve, join, relative, extname, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const base = resolve(dirname(fileURLToPath(import.meta.url)),'..');
+const root = resolve(base,'..');
+const out = join(base,'dist','public');
+const allowed = new Set(['.html','.js','.css','.svg','.png','.jpg','.jpeg','.webp','.gif','.ico','.webmanifest','.woff','.woff2','.avif']);
+const nested = new Set(['gestion','sorteo']);
+const forbidden = new Set(['analytics-cloudflare','.github','.git','node_modules','README.md','CNAME']);
+let copied = 0;
+await rm(join(base,'dist'),{recursive:true,force:true});
 await mkdir(out,{recursive:true});
-async function visit(dir){
+async function traverse(dir){
   for(const name of await readdir(dir)){
-    if(excluded.has(name)||name.startsWith('.'))continue;
-    const source=join(dir,name),rel=relative(root,source),target=join(out,rel);
-    const s=await stat(source);
-    if(s.isDirectory()){await visit(source);continue;}
-    if(!allowed.has(extname(name).toLowerCase()))continue;
-    await mkdir(dirname(target),{recursive:true});
-    await copyFile(source,target);copied++;
+    if(name.startsWith('.')||forbidden.has(name)) continue;
+    const file=join(dir,name),rel=relative(root,file);
+    const meta=await stat(file);
+    if(meta.isDirectory()){
+      if(dir===root&&!nested.has(name)) continue;
+      await traverse(file);
+      continue;
+    }
+    if(!meta.isFile() || !allowed.has(extname(name).toLowerCase())) continue;
+    await mkdir(dirname(join(out,rel)),{recursive:true});
+    await copyFile(file,join(out,rel));
+    copied++;
   }
 }
-await visit(root);
-if(copied<10)throw new Error('El artefacto no contiene suficientes archivos de la web.');
-console.log('Copia de la web actual: '+copied+' archivos. El antiguo admin.html público queda excluido.');
+await traverse(root);
+await access(join(out,'index.html'));
+if(copied<20)throw Error('Faltan recursos públicos: no se despliega.');
+console.log('Compilados '+copied+' recursos sin exponer scripts .gs, migraciones, secretos ni código del Worker.');
