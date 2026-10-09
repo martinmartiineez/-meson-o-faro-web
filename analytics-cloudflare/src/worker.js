@@ -117,7 +117,15 @@ async function readBody(req){
   if(txt.length>6000) throw new Error('Solicitud demasiado grande');
   return JSON.parse(txt);
 }
-function validUuid(value){return /^[a-f0-9-]{36}$/i.test(String(value||''));}
+function validUuid(value){return /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(value||''));}
+function trustedRequest(req){
+  const origin=req.headers.get('Origin');
+  const site=req.headers.get('Sec-Fetch-Site');
+  const type=(req.headers.get('Content-Type')||'').toLowerCase();
+  if(origin && origin!==new URL(req.url).origin)return false;
+  if(site && site!=='same-origin' && site!=='none')return false;
+  return type.startsWith('application/json');
+}
 async function consentEndpoint(req,env){
   if(await rateCheck(env,req,30)) return safeError('Demasiadas solicitudes',429);
   let b;try{b=await readBody(req);}catch(_){return safeError('Solicitud incorrecta');}
@@ -201,6 +209,7 @@ async function adminApi(req,env,path){
       return json({ok:true});
     }
     if(!['allow','block'].includes(body.action)) return safeError('Acción incorrecta');
+    if(body.action==='block' && ip===clientIp(req)) return safeError('No se puede bloquear la IP de la sesión administradora.');
     const minutes=Math.max(5,Math.min(43200,Math.floor(Number(body.minutes)||60)));
     await env.DB.prepare('INSERT INTO ip_rules (ip,action,reason,created_at,expires_at) VALUES (?,?,?,?,?) ON CONFLICT(ip) DO UPDATE SET action=excluded.action,reason=excluded.reason,created_at=excluded.created_at,expires_at=excluded.expires_at')
       .bind(ip,body.action,text(body.reason||'Regla manual',120),now(),dateOffset(minutes/1440)).run();
@@ -259,6 +268,7 @@ export default {
     if(path===PREFIX+'/client.js') return new Response(CONSENT_JS,{headers:{'content-type':'application/javascript; charset=utf-8','cache-control':'public, max-age=3600','x-content-type-options':'nosniff'}});
     if(path===PREFIX+'/api/consent'||path===PREFIX+'/api/event'){
       if(req.method!=='POST') return safeError('Método no admitido',405);
+      if(!trustedRequest(req)) return safeError('Origen o formato no permitido',403);
       return path.endsWith('/consent')?consentEndpoint(req,env):eventEndpoint(req,env);
     }
     if(path.startsWith(PREFIX+'/admin')||path.startsWith(PREFIX+'/api/admin/')){
@@ -267,7 +277,10 @@ export default {
       if(!identity){ctx.waitUntil(incident(env,req,'auth_denied','media',403,'Credenciales Access incorrectas o ausentes'));return safeError('Acceso privado. Autenticación obligatoria.',403);}
       if(path===PREFIX+'/admin' && req.method==='GET') return protectHeaders(new Response(DASHBOARD_HTML,{headers:{'content-type':'text/html; charset=utf-8'}}),true);
       if(path===PREFIX+'/admin.js' && req.method==='GET') return new Response(DASHBOARD_JS,{headers:{'content-type':'application/javascript; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff'}});
-      if(path.startsWith(PREFIX+'/api/admin/')) return adminApi(req,env,path.slice((PREFIX+'/api/admin/').length));
+      if(path.startsWith(PREFIX+'/api/admin/')) {
+        if(req.method==='POST' && !trustedRequest(req)) return safeError('Origen o formato no permitido',403);
+        return adminApi(req,env,path.slice((PREFIX+'/api/admin/').length));
+      }
       return safeError('Recurso no encontrado',404);
     }
     if(path.startsWith(PREFIX)) return safeError('Recurso no encontrado',404);
