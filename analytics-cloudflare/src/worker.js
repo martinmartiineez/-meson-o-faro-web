@@ -10,7 +10,11 @@ const json = (data,status=200) => new Response(JSON.stringify(data),{status,head
 const safeError = (msg,status=400) => json({ok:false,error:msg},status);
 const cleanPath = path => (/^\/[a-z0-9/_\-.]{0,130}$/i.test(path) ? path : '/');
 const isoDate = value => /^\d{4}-\d{2}-\d{2}$/.test(value||'') ? value : '';
-const today = () => new Date().toISOString().slice(0,10);
+const today = () => {
+  const parts = new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Madrid',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date());
+  const v={};parts.forEach(p=>{if(p.type!=='literal')v[p.type]=p.value;});
+  return v.year+'-'+v.month+'-'+v.day;
+};
 const now = () => new Date().toISOString();
 const dateOffset = days => new Date(Date.now()+days*DAY).toISOString();
 function clientIp(request){
@@ -224,6 +228,23 @@ async function adminApi(req,env,path){
     ]);
     return json({ok:true});
   }
+  if(path==='subject'){
+    const cid=text(body.cid,60);
+    if(!validUuid(cid))return safeError('Identificador de consentimiento incorrecto');
+    if(body.action==='erase'&&body.confirm==='BORRAR'){
+      await env.DB.batch([
+        env.DB.prepare('DELETE FROM visit_events WHERE cid=?').bind(cid),
+        env.DB.prepare('DELETE FROM consents WHERE cid=?').bind(cid)
+      ]);
+      return json({ok:true,erased:true});
+    }
+    if(body.action==='export'){
+      const events=await env.DB.prepare('SELECT at,sid,page,event,element,seconds,country,device,browser,os,source FROM visit_events WHERE cid=? ORDER BY at LIMIT 2000').bind(cid).all();
+      const consent=await env.DB.prepare('SELECT cid,policy_version,accepted_at,expires_at FROM consents WHERE cid=?').bind(cid).first();
+      return json({ok:true,consent,events:events.results});
+    }
+    return safeError('Operación no admitida');
+  }
   if(path==='purge'){
     await purge(env);
     return json({ok:true,finished:now()});
@@ -264,7 +285,7 @@ async function publicPage(req,env,ctx){
 export default {
   async fetch(req,env,ctx){
     const u=new URL(req.url),path=u.pathname;
-    if(!env.ASSETS || !env.DB) return safeError('Infraestructura no configurada',503);
+    if(!env.ASSETS || !env.DB || !env.LOG_HMAC_SECRET) return safeError('Infraestructura no configurada',503);
     if(path===PREFIX+'/client.js') return new Response(CONSENT_JS,{headers:{'content-type':'application/javascript; charset=utf-8','cache-control':'public, max-age=3600','x-content-type-options':'nosniff'}});
     if(path===PREFIX+'/api/consent'||path===PREFIX+'/api/event'){
       if(req.method!=='POST') return safeError('Método no admitido',405);
@@ -274,7 +295,11 @@ export default {
     if(path.startsWith(PREFIX+'/admin')||path.startsWith(PREFIX+'/api/admin/')){
       if(await isBlocked(env,req)) {ctx.waitUntil(incident(env,req,'ip_blocked','media',403,'Acceso bloqueado'));return safeError('Acceso denegado',403);}
       const identity=await adminIdentity(req,env);
-      if(!identity){ctx.waitUntil(incident(env,req,'auth_denied','media',403,'Credenciales Access incorrectas o ausentes'));return safeError('Acceso privado. Autenticación obligatoria.',403);}
+      if(!identity){
+        const abusive=await rateCheck(env,req,20);
+        ctx.waitUntil(incident(env,req,'auth_denied',abusive?'alta':'media',abusive?429:403,'Credenciales Access incorrectas o ausentes'));
+        return safeError('Acceso privado. Autenticación obligatoria.',abusive?429:403);
+      }
       if(path===PREFIX+'/admin' && req.method==='GET') return protectHeaders(new Response(DASHBOARD_HTML,{headers:{'content-type':'text/html; charset=utf-8'}}),true);
       if(path===PREFIX+'/admin.js' && req.method==='GET') return new Response(DASHBOARD_JS,{headers:{'content-type':'application/javascript; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff'}});
       if(path.startsWith(PREFIX+'/api/admin/')) {
@@ -285,7 +310,7 @@ export default {
     }
     if(path.startsWith(PREFIX)) return safeError('Recurso no encontrado',404);
     if(await isBlocked(env,req)){ctx.waitUntil(incident(env,req,'ip_blocked','media',403,'Bloqueo manual'));return new Response('Acceso temporalmente restringido',{status:403});}
-    if(/\/(?:\.env|\.git|wp-admin|phpmyadmin|\.well-known\/security\.txt|config\.php)/i.test(path)){
+    if(/\/(?:\.env|\.git|wp-admin|phpmyadmin|config\.php)/i.test(path)){
       ctx.waitUntil(incident(env,req,'suspicious_path','media',404,'Ruta potencialmente automatizada'));
       return new Response('Not Found',{status:404});
     }
