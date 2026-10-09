@@ -23,6 +23,18 @@ jobs:
           node --check src/consent.js
           node --check src/dashboard.js
           node --test tests/*.test.mjs
+      - name: Validar esquema SQL de almacenamiento
+        working-directory: analytics-cloudflare
+        run: |
+          python3 - <<'PY'
+          import sqlite3
+          db=sqlite3.connect(':memory:')
+          db.executescript(open('migrations/0001_init.sql',encoding='utf-8').read())
+          expected={'page_hits','consents','visit_events','security_events','ip_rules','request_counters','settings'}
+          tables={name for (name,) in db.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+          assert expected.issubset(tables),(expected-tables)
+          print('Esquema SQL válido y tablas verificadas')
+          PY
       - name: Comprobar conservación de la web
         working-directory: analytics-cloudflare
         run: |
