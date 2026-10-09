@@ -20,7 +20,7 @@ No se recuperan estadísticas históricas inexistentes; el dashboard muestra ún
 ## Activación necesaria por el propietario
 
 1. Crear Cloudflare y añadir el dominio mesonofaro.es. No cambiar todavía los nameservers: copiar y revisar todos los registros DNS de DonDominio, especialmente correo y validaciones.
-2. Crear D1: npx wrangler d1 create ofaro-analytics --jurisdiction eu. Sustituir el ID ficticio 00000000-0000-0000-0000-000000000000 del wrangler.json por el UUID asignado. Aplicar: npx wrangler d1 migrations apply ofaro-analytics --remote.
+2. Crear D1: npx wrangler d1 create mesonofaro-analytics --jurisdiction eu. Sustituir el marcador SUSTITUIR_POR_ID_REAL del wrangler.json por el UUID asignado. Aplicar: npx wrangler d1 migrations apply mesonofaro-analytics --remote.
 3. En analytics-cloudflare: npm install, npm test, npm run build y npm run deploy. Hacer primero despliegue de pruebas sin dominio de producción.
 4. Generar una clave HMAC de alta entropía y establecerla mediante npx wrangler secret put LOG_HMAC_SECRET. Nunca subir contraseñas ni secretos a GitHub.
 5. En Cloudflare Zero Trust > Access crear una aplicación protegida para mesonofaro.es/__ofaro/admin* y mesonofaro.es/__ofaro/api/admin/*, restringida al correo autorizado y preferiblemente con MFA. Configurar en Worker ACCESS_TEAM_DOMAIN, ACCESS_AUD (Audience Tag de Access) y ADMIN_EMAILS (lista de correos permitidos). El Worker verifica la firma RS256 y los claims de cada petición, no confía solo en ocultar la URL.
