@@ -122,6 +122,15 @@ async function readBody(req){
   return JSON.parse(txt);
 }
 function validUuid(value){return /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(value||''));}
+function validIp(value){
+  const s=String(value||'');
+  if(s.includes('.')){
+    const parts=s.split('.');
+    return parts.length===4 && parts.every(p=>/^(0|[1-9][0-9]{0,2})$/.test(p)&&Number(p)<=255);
+  }
+  return s.includes(':') && s.length<=39 && /^[0-9a-f:]+$/i.test(s) && s.split(':').length<=9 && !s.includes(':::');
+}
+
 function trustedRequest(req){
   const origin=req.headers.get('Origin');
   const site=req.headers.get('Sec-Fetch-Site');
@@ -207,7 +216,7 @@ async function adminApi(req,env,path){
   let body;try{body=await readBody(req);}catch(_){return safeError('Solicitud inválida');}
   if(path==='rules'){
     const ip=text(body.ip,45);
-    if(!ip || !/^[0-9a-fA-F:.]+$/.test(ip)) return safeError('Dirección IP no válida');
+    if(!ip || !validIp(ip)) return safeError('Dirección IP no válida');
     if(body.action==='remove'){
       await env.DB.prepare('DELETE FROM ip_rules WHERE ip=?').bind(ip).run();
       return json({ok:true});
@@ -327,6 +336,11 @@ export default {
     if(/\/(?:\.env|\.git|wp-admin|phpmyadmin|config\.php)/i.test(path)){
       ctx.waitUntil(incident(env,req,'suspicious_path','media',404,'Ruta potencialmente automatizada'));
       return new Response('Not Found',{status:404});
+    }
+    // Umbral conservador: solo HTML; el tráfico masivo de red se limita adicionalmente con WAF.
+    if(BROWSER_PAGES.has(path) && await rateCheck(env,req,240)){
+      ctx.waitUntil(incident(env,req,'rate_exceeded','alta',429,'Exceso de solicitudes HTML por minuto'));
+      return new Response('Demasiadas solicitudes. Reintenta en un minuto.',{status:429,headers:{'Retry-After':'60'}});
     }
     return publicPage(req,env,ctx);
   },
