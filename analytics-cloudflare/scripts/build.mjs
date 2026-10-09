@@ -2,7 +2,7 @@ import {readdir,stat,copyFile,mkdir,rm} from 'node:fs/promises';
 import {resolve,join,relative,extname,dirname} from 'node:path';
 import {fileURLToPath} from 'node:url';
 const project=resolve(dirname(fileURLToPath(import.meta.url)),'..');
-const root=resolve(project,'../..');
+const root=resolve(project,'..');
 const out=join(project,'dist');
 const allowed=new Set(['.html','.js','.css','.svg','.png','.jpg','.jpeg','.webp','.gif','.ico','.webmanifest','.json','.txt','.woff','.woff2']);
 const excluded=new Set(['.git','.github','analytics-cloudflare','node_modules','admin.html','README.md','CNAME']);
