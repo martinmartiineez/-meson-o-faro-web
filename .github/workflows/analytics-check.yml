@@ -39,12 +39,13 @@ jobs:
         working-directory: analytics-cloudflare
         run: |
           npm run build
-          test -f dist/index.html
-          test -f dist/carta.html
-          test -f dist/menu-dia.html
-          test -f dist/reservas.js
-          test -f dist/gestion/index.html
-          test -f dist/sorteo/index.html
-          test ! -e dist/admin.html
-          test ! -e dist/analytics-cloudflare
+          test -f dist/public/index.html
+          test -f dist/public/carta.html
+          test -f dist/public/menu-dia.html
+          test -f dist/public/reservas.js
+          test -f dist/public/gestion/index.html
+          test -f dist/public/sorteo/index.html
+          test -f dist/public/admin.html
+          test ! -e dist/public/analytics-cloudflare
+          test ! -e dist/public/apps-script.gs
           echo "Comprobaciones de archivos satisfactorias"
