@@ -1,5 +1,5 @@
 {
-  "name": "meson-o-faro-seguridad",
+  "name": "meson-o-faro-seguridad-test",
   "main": "src/worker.js",
   "compatibility_date": "2026-10-08",
   "workers_dev": false,
@@ -12,8 +12,8 @@
   "d1_databases": [
     {
       "binding": "DB",
-      "database_name": "mesonofaro-analytics",
-      "database_id": "00000000-0000-0000-0000-000000000000",
+      "database_name": "ofaro-analytics-test",
+      "database_id": "c2e5eb6f-30b3-474c-84ce-ef1cb1cb3319",
       "migrations_dir": "migrations"
     }
   ],
