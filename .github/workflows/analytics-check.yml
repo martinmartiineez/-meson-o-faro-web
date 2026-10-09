@@ -1,0 +1,38 @@
+name: Comprobar analítica y seguridad
+on:
+  push:
+    branches:
+      - feature/analitica-seguridad-cloudflare
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Descargar proyecto
+        uses: actions/checkout@v4
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validar módulos y API
+        working-directory: analytics-cloudflare
+        run: |
+          node --check src/worker.js
+          node --check src/consent.js
+          node --check src/dashboard.js
+          node --test tests/*.test.mjs
+      - name: Comprobar conservación de la web
+        working-directory: analytics-cloudflare
+        run: |
+          npm run build
+          test -f dist/index.html
+          test -f dist/carta.html
+          test -f dist/menu-dia.html
+          test -f dist/reservas.js
+          test -f dist/gestion/index.html
+          test -f dist/sorteo/index.html
+          test ! -e dist/admin.html
+          test ! -e dist/analytics-cloudflare
+          echo "Comprobaciones de archivos satisfactorias"
