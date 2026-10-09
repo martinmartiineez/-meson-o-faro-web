@@ -1,0 +1,35 @@
+name: Check analytics and security modules
+on:
+  push:
+    branches:
+      - feature/analitica-seguridad-cloudflare
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check JavaScript syntax
+        working-directory: analytics-cloudflare
+        run: |
+          node --check src/worker.js
+          node --check src/dashboard.js
+          node --check src/consent.js
+      - name: Run Worker tests
+        working-directory: analytics-cloudflare
+        run: node --test tests/*.test.mjs
+      - name: Build public site without private sources
+        working-directory: analytics-cloudflare
+        run: |
+          npm run build
+          test -f dist/public/index.html
+          test -f dist/public/carta.html
+          test -f dist/public/menu-dia.html
+          test -f dist/public/gestion/index.html
+          test ! -e dist/public/apps-script.gs
+          test ! -e dist/public/analytics-cloudflare/src/worker.js
