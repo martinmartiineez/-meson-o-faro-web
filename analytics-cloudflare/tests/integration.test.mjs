@@ -67,11 +67,28 @@ test('consentimiento, evento y retirada operan sobre el SQL real',async()=>{
   assert.equal((await x.request('/__ofaro/api/event',event)).status,403);x.sqlite.close();
 });
 test('límite HTML no almacena IP en contadores y registra la incidencia',async()=>{
+  // El limitador usa intervalos de minuto (UTC). Congelamos el reloj SOLO en
+  // esta prueba: una ráfaga que cruce XX:59 -> XX+1:00 se reparte entre dos
+  // ventanas y no debe producir 429, aunque la prueba anterior lo exigía.
+  const NativeDate=globalThis.Date;
+  const fixedTime=NativeDate.now();
+  class TestDate extends NativeDate {
+    constructor(...args){super(...(args.length?args:[fixedTime]));}
+    static now(){return fixedTime;}
+  }
   const x=fixture(),headers={'CF-Connecting-IP':'192.0.2.10'};
-  for(let i=0;i<240;i++)assert.equal((await x.request('/',undefined,headers)).status,200);
-  assert.equal((await x.request('/',undefined,headers)).status,429);
-  const counter=x.sqlite.prepare('SELECT k FROM request_counters').get();assert.ok(!counter.k.includes('192.0.2.10'));
-  assert.equal(x.sqlite.prepare('SELECT ip,kind FROM security_events').get().kind,'rate_exceeded');x.sqlite.close();
+  try{
+    globalThis.Date=TestDate;
+    for(let i=0;i<240;i++)assert.equal((await x.request('/',undefined,headers)).status,200);
+    assert.equal((await x.request('/',undefined,headers)).status,429);
+    const counter=x.sqlite.prepare('SELECT k,count FROM request_counters').get();
+    assert.equal(counter.count,241);
+    assert.ok(!counter.k.includes('192.0.2.10'));
+    assert.equal(x.sqlite.prepare('SELECT ip,kind,status FROM security_events').get().kind,'rate_exceeded');
+  }finally{
+    globalThis.Date=NativeDate;
+    x.sqlite.close();
+  }
 });
 test('Access verifica firma, correo, audiencia y caducidad antes de servir el panel',async()=>{
   globalThis.fetch=async url=>{assert.equal(String(url),'https://unit.cloudflareaccess.com/cdn-cgi/access/certs');return Response.json({keys:[jwk]});};
