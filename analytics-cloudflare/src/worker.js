@@ -321,7 +321,7 @@ async function publicPage(req,env,ctx){
   const body=await response.text();
   // Defer third-party Google Maps until an explicit user click.
   const mapSafe=body.replace(/src="(https:\/\/www\.google\.com\/maps[^"]*)"/g,'data-ofaro-map-src="$1"');
-  const modified=mapSafe.replace(/<\/body>/i,'<script defer src="/__ofaro/client.js"></script></body>');
+  const modified=mapSafe.replace(/<\/body>/i,'<script defer src="/__ofaro/client.js?v=20261022-1"></script></body>');
   const headers=new Headers(response.headers);
   headers.delete('Content-Length');headers.delete('Content-Encoding');headers.delete('ETag');headers.delete('Last-Modified');headers.set('Content-Type','text/html; charset=utf-8');
   return new Response(modified,{status:200,headers});
@@ -330,7 +330,7 @@ export default {
   async fetch(req,env,ctx){
     const u=new URL(req.url),path=u.pathname;
     if(!env.ASSETS || !env.DB || !env.LOG_HMAC_SECRET) return safeError('Infraestructura no configurada',503);
-    if(path===PREFIX+'/client.js') return new Response(CONSENT_JS,{headers:{'content-type':'application/javascript; charset=utf-8','cache-control':'public, max-age=3600','x-content-type-options':'nosniff'}});
+    if(path===PREFIX+'/client.js') return new Response(CONSENT_JS,{headers:{'content-type':'application/javascript; charset=utf-8','cache-control':'no-cache, must-revalidate','x-content-type-options':'nosniff'}});
     if(path===PREFIX+'/api/consent'||path===PREFIX+'/api/event'){
       if(req.method!=='POST') return safeError('Método no admitido',405);
       if(!trustedRequest(req)) return safeError('Origen o formato no permitido',403);
