@@ -56,3 +56,4 @@ Consultar `REVISION_2026-10-09.md` para el estado recuperado, cambios y pruebas.
 `package-lock.json` fija las dependencias. Las pruebas usan SQLite real para ejercitar las consultas, tokens RSA de prueba para Access y jsdom para comprobar consentimiento y exportaciones. jsdom no sustituye la revisión visual en un navegador.
 
 Referencias técnicas: https://developers.cloudflare.com/workers/static-assets/routing/advanced/html-handling/ ; https://developers.cloudflare.com/cloudflare-one/access-controls/applications/http-apps/authorization-cookie/validating-json/ ; https://developers.cloudflare.com/d1/reference/migrations/ .
+<!-- Trigger Cloudflare Workers build -->
