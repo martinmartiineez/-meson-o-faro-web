@@ -161,8 +161,9 @@ function trustedRequest(req){
 async function consentEndpoint(req,env){
   if(await rateCheck(env,req,30)) return safeError('Demasiadas solicitudes',429);
   let b;try{b=await readBody(req);}catch(_){return safeError('Solicitud incorrecta');}
-  if(!validUuid(b.cid) || !['accept','withdraw'].includes(b.choice)) return safeError('Consentimiento incorrecto');
+  if(!validUuid(b.cid) || !['accept','accept_network','withdraw'].includes(b.choice)) return safeError('Consentimiento incorrecto');
   if(b.choice==='withdraw'){
+    try{await env.DB.prepare('DELETE FROM network_visits WHERE cid=?').bind(b.cid).run();}catch(_){}
     await env.DB.batch([
       env.DB.prepare('DELETE FROM visit_events WHERE cid=?').bind(b.cid),
       env.DB.prepare('DELETE FROM consents WHERE cid=?').bind(b.cid)
@@ -170,14 +171,14 @@ async function consentEndpoint(req,env){
     return json({ok:true,withdrawn:true});
   }
   // Repeated requests must not extend the same identifier's lifetime.
-  await env.DB.prepare('INSERT INTO consents (cid,policy_version,accepted_at,expires_at) VALUES (?,?,?,?) ON CONFLICT(cid) DO NOTHING').bind(b.cid,'2026-10',now(),dateOffset(180)).run();
+  await env.DB.prepare('INSERT INTO consents (cid,policy_version,accepted_at,expires_at) VALUES (?,?,?,?) ON CONFLICT(cid) DO NOTHING').bind(b.cid,b.choice==='accept_network'?'2026-10-ip7':'2026-10',now(),dateOffset(180)).run();
   return json({ok:true});
 }
 async function eventEndpoint(req,env){
   if(await rateCheck(env,req,120)) return safeError('Demasiadas solicitudes',429);
   let b;try{b=await readBody(req);}catch(_){return safeError('Datos incorrectos');}
   if(!validUuid(b.cid)||!validUuid(b.sid)|| !['page','click','leave'].includes(b.event)) return safeError('Evento incorrecto');
-  const consent=await env.DB.prepare('SELECT cid FROM consents WHERE cid=? AND expires_at>?').bind(b.cid,now()).first();
+  const consent=await env.DB.prepare('SELECT cid,policy_version FROM consents WHERE cid=? AND expires_at>?').bind(b.cid,now()).first();
   if(!consent) return safeError('Sin consentimiento válido',403);
   const path=cleanPath(text(b.page,130)),info=uaParts(req.headers.get('User-Agent'));
   const country=text(req.cf?.country||'',2);
@@ -185,6 +186,11 @@ async function eventEndpoint(req,env){
   const source=trafficSource(text(b.referrer,240),new URL(req.url).origin);
   await env.DB.prepare('INSERT INTO visit_events (at,cid,sid,page,event,element,seconds,country,device,browser,os,source) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)')
     .bind(now(),b.cid,b.sid,path,b.event,text(b.element||'',45),duration,country,info.device,info.browser,info.os,source).run();
+  if(b.event==='page'&&consent.policy_version==='2026-10-ip7'){
+    const ip=clientIp(req),cf=req.cf||{};
+    if(ip)try{await env.DB.prepare('INSERT INTO network_visits(at,cid,ip,page,country,region,city) VALUES (?,?,?,?,?,?,?)')
+      .bind(now(),b.cid,ip,path,country,text(cf.region||'Desconocida',64),text(cf.city||'',64)).run();}catch(_){}
+  }
   return json({ok:true});
 }
 async function pageCounter(req,res,env){
@@ -195,6 +201,9 @@ async function pageCounter(req,res,env){
   const country=text(req.cf?.country||'XX',2);
   await env.DB.prepare('INSERT INTO page_hits (day,page,country,hits) VALUES (?,?,?,1) ON CONFLICT(day,page,country) DO UPDATE SET hits=hits+1')
     .bind(today(),path,country).run();
+  const region=text(req.cf?.region||'Desconocida',64);
+  try{await env.DB.prepare('INSERT INTO region_hits(day,page,country,region,hits) VALUES (?,?,?,?,1) ON CONFLICT(day,page,country,region) DO UPDATE SET hits=hits+1')
+    .bind(today(),path,country,region).run();}catch(_){} 
 }
 function dateRange(url){
   for(const key of ['from','to'])if(url.searchParams.has(key)&&!isoDate(url.searchParams.get(key)))throw new Error('Fecha no válida');
@@ -229,7 +238,8 @@ async function adminApi(req,env,path){
       const pages=await env.DB.prepare('SELECT page,SUM(hits) hits FROM page_hits WHERE day BETWEEN ? AND ? GROUP BY page ORDER BY hits DESC LIMIT 30').bind(start,end).all();
       const countries=await env.DB.prepare('SELECT country,SUM(hits) hits FROM page_hits WHERE day BETWEEN ? AND ? GROUP BY country ORDER BY hits DESC LIMIT 30').bind(start,end).all();
       const devices=await env.DB.prepare("SELECT device,browser,os,source,COUNT(*) n FROM visit_events WHERE event='page' AND at>=? AND at<? GROUP BY device,browser,os,source ORDER BY n DESC LIMIT 50").bind(fromUtc,toUtc).all();
-      return json({ok:true,daily:daily.results,pages:pages.results,countries:countries.results,devices:devices.results});
+      let regions=[];try{regions=(await env.DB.prepare('SELECT country,region,SUM(hits) hits FROM region_hits WHERE day BETWEEN ? AND ? GROUP BY country,region ORDER BY hits DESC LIMIT 30').bind(start,end).all()).results;}catch(_){}
+      return json({ok:true,daily:daily.results,pages:pages.results,countries:countries.results,regions,devices:devices.results});
     }
     if(path==='visits'){
       const data=await env.DB.prepare('SELECT at,substr(cid,1,8) pseudonym,substr(sid,1,8) session,page,event,element,seconds,country,device,browser,os,source FROM visit_events WHERE at>=? AND at<? ORDER BY at DESC LIMIT 300').bind(fromUtc,toUtc).all();
@@ -237,8 +247,9 @@ async function adminApi(req,env,path){
     }
     if(path==='security'){
       const events=await env.DB.prepare('SELECT id,at,ip,path,status,kind,severity,country,city,browser,os,device,details FROM security_events WHERE at>=? AND at<? ORDER BY at DESC LIMIT 300').bind(fromUtc,toUtc).all();
+      let network=[];try{network=(await env.DB.prepare('SELECT at,ip,page,country,region,city FROM network_visits WHERE at>=? AND at<? ORDER BY at DESC LIMIT 300').bind(fromUtc,toUtc).all()).results;}catch(_){}
       const rules=await env.DB.prepare('SELECT ip,action,reason,created_at,expires_at FROM ip_rules ORDER BY created_at DESC LIMIT 200').all();
-      return json({ok:true,events:events.results,rules:rules.results});
+      return json({ok:true,events:events.results,network,rules:rules.results});
     }
     if(path==='settings'){
       return json({ok:true,security_days:await setting(env,'security_days'),tracking_days:await setting(env,'tracking_days'),webhook_active:!!env.ALERT_WEBHOOK_URL});
@@ -273,6 +284,7 @@ async function adminApi(req,env,path){
     const cid=text(body.cid,60);
     if(!validUuid(cid))return safeError('Identificador de consentimiento incorrecto');
     if(body.action==='erase'&&body.confirm==='BORRAR'){
+      try{await env.DB.prepare('DELETE FROM network_visits WHERE cid=?').bind(cid).run();}catch(_){}
       await env.DB.batch([
         env.DB.prepare('DELETE FROM visit_events WHERE cid=?').bind(cid),
         env.DB.prepare('DELETE FROM consents WHERE cid=?').bind(cid)
@@ -282,7 +294,8 @@ async function adminApi(req,env,path){
     if(body.action==='export'){
       const events=await env.DB.prepare('SELECT at,sid,page,event,element,seconds,country,device,browser,os,source FROM visit_events WHERE cid=? ORDER BY at LIMIT 2000').bind(cid).all();
       const consent=await env.DB.prepare('SELECT cid,policy_version,accepted_at,expires_at FROM consents WHERE cid=?').bind(cid).first();
-      return json({ok:true,consent,events:events.results});
+      let network=[];try{network=(await env.DB.prepare('SELECT at,ip,page,country,region,city FROM network_visits WHERE cid=? ORDER BY at LIMIT 2000').bind(cid).all()).results;}catch(_){}
+      return json({ok:true,consent,events:events.results,network});
     }
     return safeError('Operación no admitida');
   }
@@ -294,6 +307,7 @@ async function adminApi(req,env,path){
 }
 async function purge(env){
   if(!env.DB) return;
+  try{await env.DB.prepare('DELETE FROM network_visits WHERE at < ?').bind(dateOffset(-7)).run();}catch(_){} 
   const security=dateOffset(-(await setting(env,'security_days'))),tracking=dateOffset(-(await setting(env,'tracking_days')));
   await env.DB.batch([
     env.DB.prepare('DELETE FROM security_events WHERE at < ?').bind(security),
