@@ -24,7 +24,7 @@ test('privacidad en DOM, concurrencia y exportación CSV',async()=>{
 {
  const x=client();await turn();let resolveConsent;
  x.w.fetch=async(url,opts)=>{const body=JSON.parse(opts.body);x.calls.push({url,body});if(body.choice==='accept')await new Promise(resolve=>resolveConsent=resolve);return {ok:true,json:async()=>({ok:true})};};
- x.button('Aceptar').click();x.button('Rechazar').click();resolveConsent();await turn();await turn();
+ x.button('Aceptar').click();x.button('Configurar privacidad').click();x.button('Retirar consentimiento').click();resolveConsent();await turn();await turn();
  assert.equal(JSON.parse(x.w.localStorage.getItem(KEY)).value,'no');assert.equal(x.calls.filter(c=>c.body.event).length,0);assert.equal(x.calls.filter(c=>c.body.choice==='withdraw').length,1);x.dom.window.close();
 }
 {
