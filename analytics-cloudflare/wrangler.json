@@ -2,7 +2,7 @@
   "name": "meson-o-faro-seguridad-test",
   "main": "src/worker.js",
   "compatibility_date": "2026-10-08",
-  "workers_dev": false,
+  "workers_dev": true,
   "assets": {
     "directory": "./dist/public",
     "binding": "ASSETS",
