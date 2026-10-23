@@ -32,7 +32,20 @@ test('privacidad en DOM, concurrencia y exportación CSV',async()=>{
  w.scrollTo=()=>{};w.setInterval=()=>0;w.setTimeout=()=>0;let exported;
  w.URL.createObjectURL=blob=>{exported=blob;return 'blob:test';};w.URL.revokeObjectURL=()=>{};w.HTMLAnchorElement.prototype.click=()=>{};w.Blob=Blob;
  w.fetch=async url=>{const path=new URL(url,'https://mesonofaro.es').pathname.split('/').pop();return {ok:true,json:async()=>({ok:true,...({summary:{hits:3,consenting_uniques:1,consenting_sessions:1,incidents:[]},traffic:{daily:[{day:'2026-10-09',hits:3}],pages:[],countries:[],devices:[]},visits:{rows:[{at:'2026-10-09',element:'=FORMULA',page:'/'}]},security:{events:[],rules:[]},settings:{security_days:7,tracking_days:180}}[path])})};};w.eval(DASHBOARD_JS);await turn();await turn();
+ assert.equal(w.document.getElementById('hitCount').textContent,'3');
+ assert.equal(w.document.getElementById('connectionBadge').textContent,'Datos actualizados · Acceso seguro');
+ assert.equal(w.document.getElementById('flash').classList.contains('visible'),false,'El panel debe renderizar las 5 secciones sin errores');
  w.document.querySelector('[data-export="visits"]').click();const buffer=await exported.arrayBuffer();const bytes=new Uint8Array(buffer);assert.deepEqual([...bytes.slice(0,3)],[239,187,191]);const csv=Buffer.from(bytes).toString('utf8');assert.ok(csv.includes('\r\n'));assert.ok(csv.includes("'=FORMULA"));assert.ok(!csv.includes('\\r\\n'));dom.window.close();
 }
 
+});
+
+test('el dashboard iOS incluye todos los identificadores que utiliza su JavaScript',()=>{
+ const ids=[...new Set([...DASHBOARD_JS.matchAll(/\\$\\('([^']+)'\\)/g)].map(m=>m[1]))];
+ const dom=new JSDOM(DASHBOARD_HTML),document=dom.window.document;
+ for(const id of ids)assert.ok(document.getElementById(id),'Falta ID en el panel: '+id);
+ assert.equal(document.querySelectorAll('.tabbar [data-tab]').length,5);
+ assert.equal(document.querySelectorAll('.tab-view').length,5);
+ assert.equal(document.querySelectorAll('script[src^="http"]').length,0);
+ dom.window.close();
 });
