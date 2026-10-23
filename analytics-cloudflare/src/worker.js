@@ -43,6 +43,47 @@ function trafficSource(value,origin){
     return 'Otras referencias';
   }catch(_){return 'Directo/desconocido';}
 }
+function autonomousCommunity(country,region,regionCode){
+  // Agregación a escala autonómica; nunca persistir coordenadas ni provincia.
+  if(country!=='ES')return 'Fuera de España';
+  const normalize=v=>String(v||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z]/g,'');
+  const communities={
+    'andalucia':'Andalucía','andalusia':'Andalucía','aragon':'Aragón',
+    'asturias':'Asturias','principadodeasturias':'Asturias',
+    'baleares':'Illes Balears','illesbalears':'Illes Balears','balearicislands':'Illes Balears',
+    'canarias':'Canarias','canaryislands':'Canarias','cantabria':'Cantabria',
+    'castillalamancha':'Castilla-La Mancha','castillayleon':'Castilla y León',
+    'cataluna':'Cataluña','catalunya':'Cataluña','catalonia':'Cataluña',
+    'comunitatvalenciana':'Comunitat Valenciana','comunidadvalenciana':'Comunitat Valenciana','valenciancommunity':'Comunitat Valenciana',
+    'extremadura':'Extremadura','galicia':'Galicia',
+    'comunidaddemadrid':'Comunidad de Madrid','madrid':'Comunidad de Madrid',
+    'regiondemurcia':'Región de Murcia','murcia':'Región de Murcia',
+    'navarra':'Comunidad Foral de Navarra','comunidadforaldenavarra':'Comunidad Foral de Navarra','navarre':'Comunidad Foral de Navarra',
+    'paisvasco':'País Vasco','euskadi':'País Vasco','basquecountry':'País Vasco',
+    'larioja':'La Rioja','rioja':'La Rioja','ceuta':'Ceuta','melilla':'Melilla'
+  };
+  const provinces={
+    'acoruna':'Galicia','coruna':'Galicia','lacoruna':'Galicia','lugo':'Galicia','ourense':'Galicia','orense':'Galicia','pontevedra':'Galicia',
+    'alava':'País Vasco','araba':'País Vasco','bizkaia':'País Vasco','vizcaya':'País Vasco','gipuzkoa':'País Vasco','guipuzcoa':'País Vasco',
+    'alicante':'Comunitat Valenciana','alacant':'Comunitat Valenciana','castellon':'Comunitat Valenciana','castello':'Comunitat Valenciana','valencia':'Comunitat Valenciana',
+    'almeria':'Andalucía','cadiz':'Andalucía','cordoba':'Andalucía','granada':'Andalucía','huelva':'Andalucía','jaen':'Andalucía','malaga':'Andalucía','sevilla':'Andalucía',
+    'huesca':'Aragón','teruel':'Aragón','zaragoza':'Aragón',
+    'albacete':'Castilla-La Mancha','ciudadreal':'Castilla-La Mancha','cuenca':'Castilla-La Mancha','guadalajara':'Castilla-La Mancha','toledo':'Castilla-La Mancha',
+    'avila':'Castilla y León','burgos':'Castilla y León','leon':'Castilla y León','palencia':'Castilla y León','salamanca':'Castilla y León','segovia':'Castilla y León','soria':'Castilla y León','valladolid':'Castilla y León','zamora':'Castilla y León',
+    'barcelona':'Cataluña','girona':'Cataluña','gerona':'Cataluña','lleida':'Cataluña','lerida':'Cataluña','tarragona':'Cataluña',
+    'badajoz':'Extremadura','caceres':'Extremadura',
+    'laspalmas':'Canarias','santacruzdetenerife':'Canarias',
+    'mallorca':'Illes Balears','menorca':'Illes Balears','ibiza':'Illes Balears'
+  };
+  const regionName=normalize(region),code=normalize(regionCode).replace(/^es/,'');
+  // Cloudflare puede devolver la comunidad o la provincia según el origen.
+  return communities[regionName]||provinces[regionName]||
+    ({an:'Andalucía',ar:'Aragón',as:'Asturias',ib:'Illes Balears',cn:'Canarias',cb:'Cantabria',cm:'Castilla-La Mancha',cl:'Castilla y León',ct:'Cataluña',vc:'Comunitat Valenciana',ex:'Extremadura',ga:'Galicia',md:'Comunidad de Madrid',mc:'Región de Murcia',nc:'Comunidad Foral de Navarra',pv:'País Vasco',ri:'La Rioja',ce:'Ceuta',ml:'Melilla'})[code]||
+    'No disponible';
+}
+function madridHour(){
+  return new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/Madrid',hour:'2-digit',hourCycle:'h23'}).format(new Date());
+}
 async function signIp(ip,env){
   if(!ip || !env.LOG_HMAC_SECRET) return '';
   const key=await crypto.subtle.importKey('raw',new TextEncoder().encode(env.LOG_HMAC_SECRET),{name:'HMAC',hash:'SHA-256'},false,['sign']);
@@ -199,11 +240,23 @@ async function pageCounter(req,res,env){
   const html=res.headers.get('content-type')||'';
   if(!html.includes('text/html') || !BROWSER_PAGES.has(path) || res.status!==200) return;
   const country=text(req.cf?.country||'XX',2);
+  const day=today();
   await env.DB.prepare('INSERT INTO page_hits (day,page,country,hits) VALUES (?,?,?,1) ON CONFLICT(day,page,country) DO UPDATE SET hits=hits+1')
-    .bind(today(),path,country).run();
-  const region=text(req.cf?.region||'Desconocida',64);
+    .bind(day,path,country).run();
+  // Datos geográficos exclusivamente agregados, sin identificación individual.
+  const region=autonomousCommunity(country,req.cf?.region,req.cf?.regionCode);
   try{await env.DB.prepare('INSERT INTO region_hits(day,page,country,region,hits) VALUES (?,?,?,?,1) ON CONFLICT(day,page,country,region) DO UPDATE SET hits=hits+1')
-    .bind(today(),path,country,region).run();}catch(_){} 
+    .bind(day,path,country,region).run();}catch(_){}
+  // Dimensiones separadas por día, sin combinar IP, dispositivo y región,
+  // sin cookies, huella digital, URL de origen ni identificadores de sesión.
+  const info=uaParts(req.headers.get('User-Agent')||'');
+  const bins=[
+    ['hour',madridHour()],['device',info.device],['browser',info.browser],
+    ['os',info.os],['source',trafficSource(req.headers.get('Referer'),url.origin)]
+  ];
+  try{await env.DB.batch(bins.map(([dimension,value])=>env.DB.prepare(
+    'INSERT INTO metric_hits(day,dimension,value,hits) VALUES (?,?,?,1) ON CONFLICT(day,dimension,value) DO UPDATE SET hits=hits+1'
+  ).bind(day,dimension,value)));}catch(_){} 
 }
 function dateRange(url){
   for(const key of ['from','to'])if(url.searchParams.has(key)&&!isoDate(url.searchParams.get(key)))throw new Error('Fecha no válida');
@@ -239,7 +292,8 @@ async function adminApi(req,env,path){
       const countries=await env.DB.prepare('SELECT country,SUM(hits) hits FROM page_hits WHERE day BETWEEN ? AND ? GROUP BY country ORDER BY hits DESC LIMIT 30').bind(start,end).all();
       const devices=await env.DB.prepare("SELECT device,browser,os,source,COUNT(*) n FROM visit_events WHERE event='page' AND at>=? AND at<? GROUP BY device,browser,os,source ORDER BY n DESC LIMIT 50").bind(fromUtc,toUtc).all();
       let regions=[];try{regions=(await env.DB.prepare('SELECT country,region,SUM(hits) hits FROM region_hits WHERE day BETWEEN ? AND ? GROUP BY country,region ORDER BY hits DESC LIMIT 30').bind(start,end).all()).results;}catch(_){}
-      return json({ok:true,daily:daily.results,pages:pages.results,countries:countries.results,regions,devices:devices.results});
+      let breakdowns=[];try{breakdowns=(await env.DB.prepare('SELECT dimension,value,SUM(hits) hits FROM metric_hits WHERE day BETWEEN ? AND ? GROUP BY dimension,value ORDER BY dimension,hits DESC LIMIT 100').bind(start,end).all()).results;}catch(_){}
+      return json({ok:true,daily:daily.results,pages:pages.results,countries:countries.results,regions,breakdowns,devices:devices.results});
     }
     if(path==='visits'){
       const data=await env.DB.prepare('SELECT at,substr(cid,1,8) pseudonym,substr(sid,1,8) session,page,event,element,seconds,country,device,browser,os,source FROM visit_events WHERE at>=? AND at<? ORDER BY at DESC LIMIT 300').bind(fromUtc,toUtc).all();
