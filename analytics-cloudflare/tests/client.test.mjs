@@ -35,6 +35,11 @@ test('privacidad en DOM, concurrencia y exportación CSV',async()=>{
  assert.equal(w.document.getElementById('hitCount').textContent,'3');
  assert.equal(w.document.getElementById('connectionBadge').textContent,'Datos actualizados · Acceso seguro');
  assert.equal(w.document.getElementById('flash').classList.contains('visible'),false,'El panel debe renderizar las 5 secciones sin errores');
+ w.document.querySelector('.tabbar [data-tab="seguridad"]').click();
+ assert.equal(w.document.getElementById('seguridad').classList.contains('active'),true,'Pestaña Seguridad activa');
+ assert.equal(w.document.getElementById('resumen').classList.contains('active'),false,'Resumen debe quedar oculto');
+ w.document.querySelector('.tabbar [data-tab="visitantes"]').click();
+ assert.equal(w.document.getElementById('visitantes').classList.contains('active'),true,'Pestaña Visitas activa');
  w.document.querySelector('[data-export="visits"]').click();const buffer=await exported.arrayBuffer();const bytes=new Uint8Array(buffer);assert.deepEqual([...bytes.slice(0,3)],[239,187,191]);const csv=Buffer.from(bytes).toString('utf8');assert.ok(csv.includes('\r\n'));assert.ok(csv.includes("'=FORMULA"));assert.ok(!csv.includes('\\r\\n'));dom.window.close();
 }
 
