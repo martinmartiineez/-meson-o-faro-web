@@ -136,3 +136,33 @@ test('JSON no estructurado y cuerpos excesivos se rechazan sin guardar datos',as
   for(const payload of [null,[],1,'text',{cid:'x'.repeat(7000)}])assert.equal((await x.request('/__ofaro/api/consent',payload)).status,400);
   assert.equal(x.sqlite.prepare('SELECT COUNT(*) n FROM consents').get().n,0);x.sqlite.close();
 });
+
+test('registra métricas agregadas sin cookies ni IP y clasifica comunidad autónoma',async()=>{
+  const x=fixture(),pending=[];
+  const ip='192.0.2.85',referrer='https://www.google.com/search?q=datos-privados';
+  try{
+    for(const region of ['Galicia','A Coruña']){
+      const req=new Request('https://mesonofaro.es/carta.html',{
+        headers:{
+          'User-Agent':'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 Version/17.0 Mobile/15E148 Safari/604.1',
+          'Referer':referrer,'CF-Connecting-IP':ip
+        }
+      });
+      Object.defineProperty(req,'cf',{value:{country:'ES',region,regionCode:'GA'}});
+      const res=await worker.fetch(req,x.env,{waitUntil(p){pending.push(p);}});
+      assert.equal(res.status,200);
+      await Promise.all(pending.splice(0));
+    }
+    const rows=x.sqlite.prepare('SELECT dimension,value,hits FROM metric_hits ORDER BY dimension,value').all();
+    assert.equal(rows.length,5);
+    assert.deepEqual(rows.find(v=>v.dimension==='device'),{dimension:'device',value:'Móvil',hits:2});
+    assert.deepEqual(rows.find(v=>v.dimension==='source'),{dimension:'source',value:'Buscadores',hits:2});
+    assert.equal(rows.find(v=>v.dimension==='hour').value.length,2);
+    assert.deepEqual(x.sqlite.prepare('SELECT country,region,hits FROM region_hits').all(),[{country:'ES',region:'Galicia',hits:2}]);
+    assert.equal(x.sqlite.prepare('SELECT COUNT(*) n FROM visit_events').get().n,0);
+    assert.equal(x.sqlite.prepare('SELECT COUNT(*) n FROM network_visits').get().n,0);
+    assert.ok(!JSON.stringify(rows).includes(ip));
+    assert.ok(!JSON.stringify(rows).includes('datos-privados'));
+    assert.ok(!JSON.stringify(rows).includes('Mozilla'));
+  }finally{x.sqlite.close();}
+});
