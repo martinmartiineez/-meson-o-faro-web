@@ -306,11 +306,29 @@ async function adminApi(req,env,path){
       return json({ok:true,events:events.results,network,rules:rules.results});
     }
     if(path==='settings'){
-      return json({ok:true,security_days:await setting(env,'security_days'),tracking_days:await setting(env,'tracking_days'),webhook_active:!!env.ALERT_WEBHOOK_URL});
+      const schema=await env.DB.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name IN ('region_hits','metric_hits','network_visits')").all();
+      const installed=new Set(schema.results.map(r=>r.name));
+      return json({ok:true,security_days:await setting(env,'security_days'),tracking_days:await setting(env,'tracking_days'),webhook_active:!!env.ALERT_WEBHOOK_URL,
+        aggregate_ready:installed.has('region_hits')&&installed.has('metric_hits'),network_ready:installed.has('network_visits')});
     }
     return safeError('No existe ese módulo',404);
   }
   let body;try{body=await readBody(req);}catch(_){return safeError('Solicitud inválida');}
+  if(path==='setup'){
+    // Solo el administrador validado por Cloudflare Access, con POST same-origin.
+    if(body.action!=='initialize_aggregates')return safeError('Acción no admitida');
+    const ddl=[
+      "CREATE TABLE IF NOT EXISTS region_hits(day TEXT NOT NULL,page TEXT NOT NULL,country TEXT NOT NULL,region TEXT NOT NULL,hits INTEGER NOT NULL DEFAULT 0,PRIMARY KEY(day,page,country,region))",
+      "CREATE INDEX IF NOT EXISTS idx_region_hits_day ON region_hits(day)",
+      "CREATE TABLE IF NOT EXISTS metric_hits(day TEXT NOT NULL,dimension TEXT NOT NULL CHECK(dimension IN ('hour','device','browser','os','source')),value TEXT NOT NULL,hits INTEGER NOT NULL DEFAULT 0 CHECK(hits>=0),PRIMARY KEY(day,dimension,value))",
+      "CREATE INDEX IF NOT EXISTS idx_metric_hits_day ON metric_hits(day)",
+      "CREATE TABLE IF NOT EXISTS network_visits(id INTEGER PRIMARY KEY AUTOINCREMENT,at TEXT NOT NULL,cid TEXT NOT NULL,ip TEXT NOT NULL,page TEXT NOT NULL,country TEXT NOT NULL,region TEXT NOT NULL,city TEXT,FOREIGN KEY(cid) REFERENCES consents(cid) ON DELETE CASCADE)",
+      "CREATE INDEX IF NOT EXISTS idx_network_visits_at ON network_visits(at)",
+      "CREATE INDEX IF NOT EXISTS idx_network_visits_cid ON network_visits(cid)"
+    ];
+    for(const statement of ddl)await env.DB.prepare(statement).run();
+    return json({ok:true,aggregate_ready:true,network_ready:true});
+  }
   if(path==='rules'){
     const ip=normalizedIp(body.ip);
     if(!ip) return safeError('Dirección IP no válida');
