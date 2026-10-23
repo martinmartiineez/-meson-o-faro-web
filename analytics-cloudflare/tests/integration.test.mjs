@@ -166,3 +166,22 @@ test('registra métricas agregadas sin cookies ni IP y clasifica comunidad autó
     assert.ok(!JSON.stringify(rows).includes('Mozilla'));
   }finally{x.sqlite.close();}
 });
+
+test('activación de estadísticas solo con Access válido, repetible y sin borrar datos',async()=>{
+  globalThis.fetch=async()=>Response.json({keys:[jwk]});
+  const x=fixture();
+  try{
+    x.sqlite.exec('DROP TABLE metric_hits; DROP TABLE region_hits; DROP TABLE network_visits');
+    const path='/__ofaro/api/admin/setup';
+    const body={action:'initialize_aggregates'};
+    assert.equal((await x.request(path,body)).status,403);
+    const headers={'Cf-Access-Jwt-Assertion':await token()};
+    assert.equal((await x.request(path,body,headers)).status,200);
+    assert.equal((await x.request(path,body,headers)).status,200);
+    assert.deepEqual(x.sqlite.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name IN ('metric_hits','region_hits','network_visits') ORDER BY name").all().map(r=>r.name),['metric_hits','network_visits','region_hits']);
+    const settings=await (await x.request('/__ofaro/api/admin/settings',undefined,headers)).json();
+    assert.equal(settings.aggregate_ready,true);
+    assert.equal(settings.network_ready,true);
+    assert.equal(x.sqlite.prepare('SELECT COUNT(*) n FROM settings').get().n,2);
+  }finally{globalThis.fetch=originalFetch;x.sqlite.close();}
+});
