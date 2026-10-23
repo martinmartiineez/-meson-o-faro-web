@@ -155,10 +155,10 @@ test('registra métricas agregadas sin cookies ni IP y clasifica comunidad autó
     }
     const rows=x.sqlite.prepare('SELECT dimension,value,hits FROM metric_hits ORDER BY dimension,value').all();
     assert.equal(rows.length,5);
-    assert.deepEqual(rows.find(v=>v.dimension==='device'),{dimension:'device',value:'Móvil',hits:2});
-    assert.deepEqual(rows.find(v=>v.dimension==='source'),{dimension:'source',value:'Buscadores',hits:2});
+    assert.deepEqual({...rows.find(v=>v.dimension==='device')},{dimension:'device',value:'Móvil',hits:2});
+    assert.deepEqual({...rows.find(v=>v.dimension==='source')},{dimension:'source',value:'Buscadores',hits:2});
     assert.equal(rows.find(v=>v.dimension==='hour').value.length,2);
-    assert.deepEqual(x.sqlite.prepare('SELECT country,region,hits FROM region_hits').all(),[{country:'ES',region:'Galicia',hits:2}]);
+    assert.deepEqual(x.sqlite.prepare('SELECT country,region,hits FROM region_hits').all().map(row=>({...row})),[{country:'ES',region:'Galicia',hits:2}]);
     assert.equal(x.sqlite.prepare('SELECT COUNT(*) n FROM visit_events').get().n,0);
     assert.equal(x.sqlite.prepare('SELECT COUNT(*) n FROM network_visits').get().n,0);
     assert.ok(!JSON.stringify(rows).includes(ip));
