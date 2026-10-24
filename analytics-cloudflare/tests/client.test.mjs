@@ -208,3 +208,73 @@ test('Visitas: tabla desplegable, filtros de página/evento/dispositivo, ordenac
  assert.equal(d.getElementById('visitsFilterPanel').hidden,true);
  dom.window.close();
 });
+
+
+test('el botón superior abre el menú de períodos y sincroniza las cinco secciones',async()=>{
+ const dom=new JSDOM(DASHBOARD_HTML,{url:'https://mesonofaro.es/__ofaro/admin',runScripts:'outside-only'}),w=dom.window;
+ w.scrollTo=()=>{};w.setInterval=()=>0;
+ const calls=[];
+ w.fetch=async url=>{
+  calls.push(String(url));
+  const u=new URL(url,'https://mesonofaro.es'),name=u.pathname.split('/').pop();
+  const data={
+   summary:{hits:u.searchParams.get('from')===u.searchParams.get('to')?1:39,consenting_uniques:3,consenting_sessions:4,incidents:[]},
+   traffic:{daily:[],pages:[],countries:[],regions:[],breakdowns:[],devices:[]},
+   visits:{rows:[]},security:{events:[],network:[],rules:[]},settings:{security_days:7,tracking_days:180}
+  };
+  return {ok:true,json:async()=>({ok:true,...data[name]})};
+ };
+ w.eval(DASHBOARD_JS);await turn();await turn();
+ const doc=w.document,button=doc.getElementById('headerPeriodButton'),menu=doc.getElementById('headerPeriodMenu');
+ assert.equal(doc.querySelectorAll('[data-period-option]').length,5);
+ assert.equal(menu.hidden,true);
+ assert.equal(button.getAttribute('aria-expanded'),'false');
+ assert.equal(doc.getElementById('headerRangeLabel').textContent,'7 DÍAS');
+ const before=calls.length;
+ button.click();
+ assert.equal(menu.hidden,false,'Al pulsar el selector debe abrirse');
+ assert.equal(button.getAttribute('aria-expanded'),'true');
+ assert.equal(calls.length,before,'Abrir el menú no debe cambiar las fechas ni hacer peticiones');
+ doc.querySelector('[data-period-option="30"]').click();
+ await turn();await turn();
+ assert.equal(menu.hidden,true,'Al elegir período, se cierra el menú');
+ assert.equal(button.getAttribute('aria-expanded'),'false');
+ assert.equal(doc.getElementById('headerRangeLabel').textContent,'30 DÍAS');
+ assert.equal(doc.querySelector('[data-period-option="30"]').getAttribute('aria-pressed'),'true');
+ assert.equal(doc.querySelector('#resumen [data-range="30"]').getAttribute('aria-pressed'),'true');
+ assert.equal(doc.querySelector('#analitica [data-range="30"]').getAttribute('aria-pressed'),'true');
+ const dateTo=doc.getElementById('dateTo').value,dateFrom=doc.getElementById('dateFrom').value;
+ assert.equal((Date.parse(dateTo+'T12:00:00Z')-Date.parse(dateFrom+'T12:00:00Z'))/86400000,29);
+ assert.ok(calls.length>before);
+ button.click();
+ doc.querySelector('[data-period-option="1"]').click();await turn();await turn();
+ assert.equal(doc.getElementById('headerRangeLabel').textContent,'HOY');
+ assert.equal(doc.getElementById('dateFrom').value,doc.getElementById('dateTo').value);
+ assert.equal(doc.getElementById('hitCount').textContent,'1','Muestra estadísticas correspondientes al día actual');
+ button.click();
+ doc.body.dispatchEvent(new w.MouseEvent('click',{bubbles:true}));
+ assert.equal(menu.hidden,true,'Cierra al pulsar fuera');
+ button.click();
+ doc.dispatchEvent(new w.KeyboardEvent('keydown',{key:'Escape',bubbles:true}));
+ assert.equal(menu.hidden,true,'Cierra con Escape');
+ button.click();
+ const dateEnd=doc.getElementById('dateTo').value;
+ const day=new Date(dateEnd+'T12:00:00Z'),old=new Date(day.getTime()-86400000*2).toISOString().slice(0,10);
+ doc.getElementById('headerDateFrom').value=old;
+ doc.getElementById('headerDateTo').value=new Date(day.getTime()-86400000).toISOString().slice(0,10);
+ doc.getElementById('headerPeriodApply').click();await turn();await turn();
+ assert.equal(doc.getElementById('headerRangeLabel').textContent,'FECHAS');
+ assert.equal(menu.hidden,true);
+ assert.equal(doc.getElementById('dateFrom').value,old);
+ button.click();
+ const requestsBeforeInvalid=calls.length;
+ doc.getElementById('headerDateFrom').value='2020-01-01';
+ doc.getElementById('headerPeriodApply').click();
+ assert.equal(menu.hidden,false,'Un período inválido no debe cerrar el selector');
+ assert.equal(calls.length,requestsBeforeInvalid,'Un período inválido no debe consultar D1');
+ assert.match(doc.getElementById('flash').textContent,/máximo de 366 días/);
+ doc.querySelector('[data-period-option="7"]').click();await turn();await turn();
+ assert.equal(doc.getElementById('headerRangeLabel').textContent,'7 DÍAS');
+ assert.equal(doc.querySelector('#resumen [data-range="7"]').getAttribute('aria-pressed'),'true');
+ dom.window.close();
+});
