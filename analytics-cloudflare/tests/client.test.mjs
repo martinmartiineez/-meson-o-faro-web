@@ -69,7 +69,7 @@ test('panel iOS pagina visitas y muestra denominador real de estadísticas nueva
   }[path])})};
  };
  w.eval(DASHBOARD_JS);await turn();await turn();
- assert.equal(w.document.querySelectorAll('#visitsTable .record-entry').length,10);
+ assert.equal(w.document.querySelectorAll('#visitsTable tr.visit-entry').length,10);
  assert.equal(w.document.getElementById('visitsMoreWrap').hidden,false);
  assert.match(w.document.getElementById('visitsListStatus').textContent,/10 de 25/);
  assert.equal(w.document.getElementById('visitEventCount').textContent,'25');
@@ -78,10 +78,10 @@ test('panel iOS pagina visitas y muestra denominador real de estadísticas nueva
  assert.match(w.document.getElementById('lunchPercent').textContent,/100% de 2 clasificadas/);
  assert.equal(w.document.getElementById('headerRangeLabel').textContent,'7 DÍAS');
  w.document.getElementById('visitsShowMore').click();
- assert.equal(w.document.querySelectorAll('#visitsTable .record-entry').length,20);
+ assert.equal(w.document.querySelectorAll('#visitsTable tr.visit-entry').length,20);
  w.document.getElementById('sessionSearch').value='/carta-24';
  w.document.getElementById('sessionSearch').dispatchEvent(new w.Event('input',{bubbles:true}));
- assert.equal(w.document.querySelectorAll('#visitsTable .record-entry').length,1);
+ assert.equal(w.document.querySelectorAll('#visitsTable tr.visit-entry').length,1);
  assert.equal(w.document.getElementById('visitsMoreWrap').hidden,true);
  dom.window.close();
 });
@@ -127,10 +127,84 @@ test('gráficos reales, histograma de 24 horas y tablas con porcentajes',async()
  assert.equal(doc.querySelectorAll('#geoTable table.data-table tbody tr').length,2);
  assert.equal(doc.querySelectorAll('#regionTable table.data-table tbody tr').length,1);
  assert.match(doc.getElementById('regionCoverage').textContent,/2 de 39/);
- assert.equal(doc.querySelectorAll('#visitsDataGrid table tbody tr').length,1);
+ assert.equal(doc.querySelectorAll('#visitsTable table tbody tr.visit-entry').length,1);
  assert.equal(doc.getElementById('donutPercent').textContent,'50 %');
  const select=doc.getElementById('pagesSort');
  select.value='name';select.dispatchEvent(new w.Event('change',{bubbles:true}));
  assert.match(doc.querySelector('#popularPages table tbody tr:first-child').textContent,/^\/\s*11/);
+ dom.window.close();
+});
+
+
+test('Visitas: tabla desplegable, filtros de página/evento/dispositivo, ordenación y CSV filtrado',async()=>{
+ const dom=new JSDOM(DASHBOARD_HTML,{url:'https://mesonofaro.es/__ofaro/admin',runScripts:'outside-only'}),w=dom.window;
+ w.scrollTo=()=>{};w.setInterval=()=>0;w.setTimeout=()=>0;
+ w.URL.createObjectURL=blob=>{w.__lastCsvBlob=blob;return 'blob:export';};
+ w.URL.revokeObjectURL=()=>{};w.HTMLAnchorElement.prototype.click=()=>{};
+ w.Blob=Blob;
+ const visits=[
+  {at:'2026-10-24T11:00:00.000Z',pseudonym:'usrAAA12',session:'sesAAA12',page:'/carta.html',event:'page',device:'Móvil',browser:'Safari',element:'',country:'ES'},
+  {at:'2026-10-24T13:00:00.000Z',pseudonym:'usrBBB34',session:'sesBBB34',page:'/menu-dia.html',event:'click',device:'Escritorio',browser:'Chrome',element:'=INJECT',country:'ES'},
+  {at:'2026-10-24T12:00:00.000Z',pseudonym:'usrCCC56',session:'sesCCC56',page:'/carta.html',event:'click',device:'Móvil',browser:'Safari',element:'botón',country:'ES'}
+ ];
+ w.fetch=async url=>{
+  const name=new URL(url,'https://mesonofaro.es').pathname.split('/').pop();
+  const data={
+    summary:{hits:3,consenting_uniques:3,consenting_sessions:3,incidents:[]},
+    traffic:{daily:[{day:'2026-10-24',hits:3}],pages:[],countries:[],devices:[]},
+    visits:{rows:visits},
+    security:{events:[],rules:[],network:[]},
+    settings:{security_days:7,tracking_days:180}
+  };
+  return {ok:true,json:async()=>({ok:true,...data[name]})};
+ };
+ w.eval(DASHBOARD_JS);await turn();await turn();
+ const d=w.document;
+ assert.equal(d.querySelectorAll('#visitsTable table thead th').length,4);
+ assert.equal(d.querySelectorAll('#visitsTable tr.visit-entry').length,3);
+ assert.equal(d.querySelectorAll('#visitsTable tr.visit-detail-row[hidden]').length,3);
+ const first=d.querySelector('#visitsTable .visit-expand');
+ first.click();
+ assert.equal(first.getAttribute('aria-expanded'),'true');
+ assert.equal(d.querySelectorAll('#visitsTable tr.visit-detail-row:not([hidden])').length,1);
+ first.click();
+ assert.equal(d.querySelectorAll('#visitsTable tr.visit-detail-row:not([hidden])').length,0);
+ assert.equal(d.getElementById('visitsFilterPanel').hidden,true);
+ d.getElementById('visitsFilters').click();
+ assert.equal(d.getElementById('visitsFilterPanel').hidden,false);
+ assert.equal(d.getElementById('visitsFilters').getAttribute('aria-expanded'),'true');
+ assert.equal(d.getElementById('visitFilterPage').options.length,3);
+ assert.equal(d.getElementById('visitFilterEvent').options.length,3);
+ assert.equal(d.getElementById('visitFilterDevice').options.length,3);
+ function change(id,value){
+  const element=d.getElementById(id);element.value=value;element.dispatchEvent(new w.Event('change',{bubbles:true}));
+ }
+ change('visitFilterPage','/carta.html');
+ assert.equal(d.querySelectorAll('#visitsTable tr.visit-entry').length,2);
+ assert.match(d.getElementById('visitsVisibleLabel').textContent,/2 \/ 3/);
+ change('visitFilterEvent','click');
+ assert.equal(d.querySelectorAll('#visitsTable tr.visit-entry').length,1);
+ assert.match(d.getElementById('visitsTable').textContent,/usrCCC56/);
+ assert.equal(d.getElementById('visitsFilterCount').textContent,'2');
+ change('visitFilterEvent','');
+ change('visitSort','oldest');
+ assert.match(d.querySelector('#visitsTable tr.visit-entry').textContent,/usrAAA12/);
+ d.getElementById('sessionSearch').value='usrCCC56';
+ d.getElementById('sessionSearch').dispatchEvent(new w.Event('input',{bubbles:true}));
+ assert.equal(d.querySelectorAll('#visitsTable tr.visit-entry').length,1);
+ d.getElementById('sessionSearch').value='';
+ d.getElementById('sessionSearch').dispatchEvent(new w.Event('input',{bubbles:true}));
+ d.querySelector('[data-export="visits"]').click();
+ const csv=Buffer.from(await w.__lastCsvBlob.arrayBuffer()).toString('utf8');
+ assert.equal(csv.split('\r\n').length,3,'Cabecera y dos visitas filtradas');
+ assert.ok(!csv.includes('usrBBB34'),'La exportación respeta el filtro de página');
+ assert.ok(csv.includes('usrAAA12')&&csv.includes('usrCCC56'));
+ d.getElementById('visitFiltersClear').click();
+ assert.equal(d.querySelectorAll('#visitsTable tr.visit-entry').length,3);
+ assert.equal(d.getElementById('visitSort').value,'recent');
+ assert.equal(d.getElementById('visitsFilterCount').hidden,true);
+ assert.match(d.querySelector('#visitsTable tr.visit-entry').textContent,/usrBBB34/);
+ d.getElementById('visitsFiltersClose').click();
+ assert.equal(d.getElementById('visitsFilterPanel').hidden,true);
  dom.window.close();
 });
