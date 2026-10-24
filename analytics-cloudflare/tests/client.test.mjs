@@ -343,6 +343,6 @@ test('la selección de categorías de carta solo se registra con consentimiento'
  await turn();
  const tagged=calls.filter(c=>c.event==='click').map(c=>c.element);
  assert.deepEqual(tagged,['categoria:ensaladas','categoria:pescados']);
- assert.equal(calls.some(c=>c.page.includes('#')),false,'La ruta conserva la URL sin fragmentos');
+ assert.equal(calls.some(c=>typeof c.page==='string'&&c.page.includes('#')),false,'La ruta conserva la URL sin fragmentos');
  dom.window.close();
 });
