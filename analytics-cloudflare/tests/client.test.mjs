@@ -85,3 +85,52 @@ test('panel iOS pagina visitas y muestra denominador real de estadísticas nueva
  assert.equal(w.document.getElementById('visitsMoreWrap').hidden,true);
  dom.window.close();
 });
+
+
+test('gráficos reales, histograma de 24 horas y tablas con porcentajes',async()=>{
+ const dom=new JSDOM(DASHBOARD_HTML,{url:'https://mesonofaro.es/__ofaro/admin',runScripts:'outside-only'}),w=dom.window;
+ w.scrollTo=()=>{};w.setInterval=()=>0;
+ const traffic={
+   daily:[{day:'2026-10-22',hits:9},{day:'2026-10-23',hits:30}],
+   pages:[{page:'/carta.html',hits:25},{page:'/',hits:11},{page:'/menu-dia.html',hits:3}],
+   countries:[{country:'ES',hits:37},{country:'PT',hits:2}],
+   regions:[{country:'ES',region:'Galicia',hits:2}],
+   breakdowns:[
+    {dimension:'hour',value:'14',hits:1},{dimension:'hour',value:'16',hits:1},
+    {dimension:'device',value:'Móvil',hits:1},{dimension:'device',value:'Escritorio',hits:1},
+    {dimension:'browser',value:'Safari',hits:1},{dimension:'browser',value:'Chrome',hits:1},
+    {dimension:'source',value:'Directo/desconocido',hits:2}
+   ],devices:[]
+ };
+ w.fetch=async url=>{
+  const path=new URL(url,'https://mesonofaro.es').pathname.split('/').pop();
+  const data={
+   summary:{hits:39,consenting_uniques:16,consenting_sessions:20,incidents:[]},
+   traffic,visits:{rows:[{at:'2026-10-23T14:00:00Z',page:'/carta.html',pseudonym:'abcdef12',session:'11112222'}]},
+   security:{events:[],network:[],rules:[]},
+   settings:{security_days:7,tracking_days:180}
+  };
+  return {ok:true,json:async()=>({ok:true,...data[path]})};
+ };
+ w.eval(DASHBOARD_JS);await turn();await turn();
+ const doc=w.document;
+ assert.equal(doc.getElementById('flash').classList.contains('visible'),false);
+ assert.ok(doc.querySelector('#chartMain svg.chart-plot'),'El resumen debe tener un gráfico SVG');
+ assert.ok(doc.querySelector('#analyticsTrend svg.chart-plot'),'Analítica debe tener una serie temporal');
+ assert.ok(doc.querySelectorAll('#chartMain svg.chart-point').length>=2);
+ assert.equal(doc.querySelectorAll('#hourBars button.hour-bar').length,24);
+ assert.match(doc.getElementById('hourPeak').textContent,/1 solicitudes/);
+ doc.querySelector('#hourBars button.hour-bar:nth-child(17)').click();
+ assert.match(doc.getElementById('hourPeak').textContent,/16:00/);
+ assert.equal(doc.querySelectorAll('#popularPages table.data-table tbody tr').length,3);
+ assert.match(doc.getElementById('popularPages').textContent,/64\.1 %/);
+ assert.equal(doc.querySelectorAll('#geoTable table.data-table tbody tr').length,2);
+ assert.equal(doc.querySelectorAll('#regionTable table.data-table tbody tr').length,1);
+ assert.match(doc.getElementById('regionCoverage').textContent,/2 de 39/);
+ assert.equal(doc.querySelectorAll('#visitsDataGrid table tbody tr').length,1);
+ assert.equal(doc.getElementById('donutPercent').textContent,'50 %');
+ const select=doc.getElementById('pagesSort');
+ select.value='name';select.dispatchEvent(new w.Event('change',{bubbles:true}));
+ assert.match(doc.querySelector('#popularPages table tbody tr:first-child').textContent,/^\/\s*11/);
+ dom.window.close();
+});
