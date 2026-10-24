@@ -120,7 +120,7 @@ test('gráficos reales, histograma de 24 horas y tablas con porcentajes',async()
  assert.ok(doc.querySelectorAll('#chartMain svg.chart-point').length>=2);
  assert.equal(doc.querySelectorAll('#hourBars button.hour-bar').length,24);
  assert.match(doc.getElementById('hourPeak').textContent,/1 solicitudes/);
- doc.querySelector('#hourBars button.hour-bar:nth-child(17)').click();
+ doc.querySelector('#hourBars .hour-column:nth-child(17) button.hour-bar').click();
  assert.match(doc.getElementById('hourPeak').textContent,/16:00/);
  assert.equal(doc.querySelectorAll('#popularPages table.data-table tbody tr').length,3);
  assert.match(doc.getElementById('popularPages').textContent,/64\.1 %/);
