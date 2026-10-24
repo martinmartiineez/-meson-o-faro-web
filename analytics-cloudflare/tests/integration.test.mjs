@@ -185,3 +185,32 @@ test('activación de estadísticas solo con Access válido, repetible y sin borr
     assert.equal(x.sqlite.prepare('SELECT COUNT(*) n FROM settings').get().n,2);
   }finally{globalThis.fetch=originalFetch;x.sqlite.close();}
 });
+
+
+test('la IP consentida almacena comunidad autónoma, nunca ciudad, y distingue iPad de móvil',async()=>{
+  const x=fixture();
+  try{
+    assert.equal((await x.request('/__ofaro/api/consent',{cid:CID,choice:'accept_network'})).status,200);
+    const req=new Request('https://mesonofaro.es/__ofaro/api/event',{
+      method:'POST',
+      headers:{
+        'content-type':'application/json',
+        origin:'https://mesonofaro.es',
+        'CF-Connecting-IP':'192.0.2.25',
+        'User-Agent':'Mozilla/5.0 (iPad; CPU OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1'
+      },
+      body:JSON.stringify({cid:CID,sid:SID,event:'page',page:'/carta.html',element:''})
+    });
+    Object.defineProperty(req,'cf',{value:{country:'ES',region:'A Coruña',regionCode:'GA',city:'Ferrol'}});
+    const tasks=[];
+    const result=await worker.fetch(req,x.env,{waitUntil:p=>tasks.push(p)});
+    assert.equal(result.status,200);
+    await Promise.all(tasks);
+    const record=x.sqlite.prepare('SELECT ip,country,region,city FROM network_visits').get();
+    assert.equal(record.ip,'192.0.2.25');
+    assert.equal(record.country,'ES');
+    assert.equal(record.region,'Galicia');
+    assert.equal(record.city,'','No recopilar ciudad sin informar y obtener permiso específico');
+    assert.equal(x.sqlite.prepare('SELECT device FROM visit_events').get().device,'Tableta');
+  }finally{x.sqlite.close();}
+});
