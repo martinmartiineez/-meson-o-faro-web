@@ -409,7 +409,15 @@ async function publicPage(req,env,ctx){
   const mapSafe=body.replace(/src="(https:\/\/www\.google\.com\/maps[^"]*)"/g,'data-ofaro-map-src="$1"');
   const modified=mapSafe.replace(/<\/body>/i,'<script defer src="/__ofaro/client.js?v=20261022-1"></script></body>');
   const headers=new Headers(response.headers);
-  headers.delete('Content-Length');headers.delete('Content-Encoding');headers.delete('ETag');headers.delete('Last-Modified');headers.set('Content-Type','text/html; charset=utf-8');
+  headers.delete('Content-Length');headers.delete('Content-Encoding');headers.delete('ETag');headers.delete('Last-Modified');
+  headers.set('Content-Type','text/html; charset=utf-8');
+  headers.set('X-Content-Type-Options','nosniff');
+  headers.set('Referrer-Policy','strict-origin-when-cross-origin');
+  // La app de gestión y el sorteo incluyen funcionalidades de cámara (escáner QR).
+  // No imponerles la política restrictiva de la web pública.
+  if(!/^\/(?:gestion|sorteo)(?:\/|$)/.test(new URL(req.url).pathname)){
+    headers.set('Permissions-Policy','geolocation=(), microphone=(), camera=()');
+  }
   return new Response(modified,{status:200,headers});
 }
 export default {
