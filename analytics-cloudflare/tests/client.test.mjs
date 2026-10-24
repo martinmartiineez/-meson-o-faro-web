@@ -131,7 +131,7 @@ test('gráficos reales, histograma de 24 horas y tablas con porcentajes',async()
  assert.equal(doc.getElementById('donutPercent').textContent,'50 %');
  const select=doc.getElementById('pagesSort');
  select.value='name';select.dispatchEvent(new w.Event('change',{bubbles:true}));
- assert.match(doc.querySelector('#popularPages table tbody tr:first-child').textContent,/^\/\s*11/);
+ assert.match(doc.querySelector('#popularPages table tbody tr:first-child').textContent,/Carta · General25/);
  dom.window.close();
 });
 
@@ -179,7 +179,7 @@ test('Visitas: tabla desplegable, filtros de página/evento/dispositivo, ordenac
  function change(id,value){
   const element=d.getElementById(id);element.value=value;element.dispatchEvent(new w.Event('change',{bubbles:true}));
  }
- change('visitFilterPage','/carta.html');
+ change('visitFilterPage','Carta · General');
  assert.equal(d.querySelectorAll('#visitsTable tr.visit-entry').length,2);
  assert.match(d.getElementById('visitsVisibleLabel').textContent,/2 \/ 3/);
  change('visitFilterEvent','click');
@@ -276,5 +276,73 @@ test('el botón superior abre el menú de períodos y sincroniza las cinco secci
  doc.querySelector('[data-period-option="7"]').click();await turn();await turn();
  assert.equal(doc.getElementById('headerRangeLabel').textContent,'7 DÍAS');
  assert.equal(doc.querySelector('#resumen [data-range="7"]').getAttribute('aria-pressed'),'true');
+ dom.window.close();
+});
+
+
+test('el selector de fechas se abre en el flujo y no duplica campos visibles',async()=>{
+ const doc=new JSDOM(DASHBOARD_HTML).window.document;
+ const menu=doc.getElementById('headerPeriodMenu'),header=doc.querySelector('header.app-header');
+ assert.equal(menu.parentElement,header,'El selector forma parte de la cabecera, no se superpone al contenido principal');
+ assert.equal(doc.getElementById('dateFilters').hidden,true,'No hay un segundo formulario de fechas visible');
+ assert.equal(doc.querySelectorAll('header #headerDateFrom').length,1);
+ assert.equal(doc.querySelectorAll('header #headerDateTo').length,1);
+ assert.equal(doc.querySelectorAll('#headerPeriodMenu .period-date-inputs label').length,2);
+});
+test('la tabla distingue secciones y categorías de carta realmente registradas',async()=>{
+ const dom=new JSDOM(DASHBOARD_HTML,{url:'https://mesonofaro.es/__ofaro/admin',runScripts:'outside-only'}),w=dom.window;
+ w.scrollTo=()=>{};w.setInterval=()=>0;
+ const events=[
+  {at:'2026-10-24T15:00:00.000Z',pseudonym:'a1b2c3d4',session:'1',page:'/carta.html',event:'click',element:'categoria:ensaladas',browser:'Safari',device:'Móvil'},
+  {at:'2026-10-24T14:30:00.000Z',pseudonym:'a1b2c3d4',session:'1',page:'/carta.html',event:'click',element:'categoria:pescados',browser:'Safari',device:'Móvil'},
+  {at:'2026-10-24T14:00:00.000Z',pseudonym:'b1b2b3b4',session:'2',page:'/carta.html',event:'page',element:'',browser:'Safari',device:'Móvil'},
+  {at:'2026-10-24T13:00:00.000Z',pseudonym:'c1b2c3d4',session:'3',page:'/menu-dia.html',event:'page',element:'',browser:'Chrome',device:'Móvil'},
+  {at:'2026-10-24T12:00:00.000Z',pseudonym:'d1b2c3d4',session:'4',page:'/index.html',event:'page',element:'',browser:'Safari',device:'Móvil'}
+ ];
+ w.fetch=async url=>{
+  const name=new URL(url,'https://mesonofaro.es').pathname.split('/').pop();
+  const data={
+   summary:{hits:5,consenting_uniques:4,consenting_sessions:4,incidents:[]},
+   traffic:{daily:[],pages:[{page:'/carta.html',hits:3},{page:'/index.html',hits:1},{page:'/menu-dia.html',hits:1}],countries:[],regions:[],breakdowns:[],devices:[]},
+   visits:{rows:events},security:{events:[],rules:[],network:[]},settings:{security_days:7,tracking_days:180}
+  };
+  return {ok:true,json:async()=>({ok:true,...data[name]})};
+ };
+ w.eval(DASHBOARD_JS);await turn();await turn();
+ const d=w.document,table=d.getElementById('visitsTable');
+ assert.equal(d.getElementById('flash').classList.contains('visible'),false);
+ assert.match(table.textContent,/Carta · Ensaladas/);
+ assert.match(table.textContent,/Carta · Pescados/);
+ assert.match(table.textContent,/Carta · General/);
+ assert.match(table.textContent,/Menú del día/);
+ assert.match(table.textContent,/Página principal/);
+ d.querySelector('.visit-expand').click();
+ assert.match(table.textContent,/Ruta técnica/);
+ assert.match(table.textContent,/\/carta\.html/);
+ d.getElementById('visitsFilters').click();
+ const options=[...d.getElementById('visitFilterPage').options].map(o=>o.value);
+ for(const value of ['Carta · Ensaladas','Carta · Pescados','Carta · General','Menú del día','Página principal'])assert.ok(options.includes(value),value);
+ const filter=d.getElementById('visitFilterPage');filter.value='Carta · Ensaladas';filter.dispatchEvent(new w.Event('change',{bubbles:true}));
+ assert.equal(d.querySelectorAll('#visitsTable tr.visit-entry').length,1);
+ assert.match(d.getElementById('visitsTable').textContent,/Carta · Ensaladas/);
+ dom.window.close();
+});
+test('la selección de categorías de carta solo se registra con consentimiento',async()=>{
+ const dom=new JSDOM('<!doctype html><html><body><main><a class="chip" data-target="ensaladas" href="#ensaladas">Ensaladas</a><a class="chip" data-target="pescados" href="#pescados">Pescados</a></main><footer></footer></body></html>',{url:'https://mesonofaro.es/carta.html',runScripts:'outside-only'});
+ const w=dom.window,calls=[];
+ w.fetch=async(url,options)=>{
+  calls.push(JSON.parse(options.body));
+  return {ok:true,json:async()=>({ok:true})};
+ };
+ w.eval(CONSENT_JS);await turn();
+ let accept=[...w.document.querySelectorAll('button')].find(b=>b.textContent==='Aceptar');
+ assert.ok(accept);
+ accept.click();await turn();await turn();
+ w.document.querySelector('[data-target="ensaladas"]').click();
+ w.document.querySelector('[data-target="pescados"]').click();
+ await turn();
+ const tagged=calls.filter(c=>c.event==='click').map(c=>c.element);
+ assert.deepEqual(tagged,['categoria:ensaladas','categoria:pescados']);
+ assert.equal(calls.some(c=>c.page.includes('#')),false,'La ruta conserva la URL sin fragmentos');
  dom.window.close();
 });
