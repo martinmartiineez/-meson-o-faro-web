@@ -28,7 +28,8 @@ function clientIp(request){
 }
 function uaParts(raw){
   const ua=text(raw,512);
-  const device=/mobile|iphone|android/i.test(ua)?'Móvil':/ipad|tablet/i.test(ua)?'Tableta':'Escritorio';
+  const tablet=/ipad|tablet/i.test(ua)||(/android/i.test(ua)&&!/mobile/i.test(ua));
+  const device=tablet?'Tableta':/mobile|iphone|android/i.test(ua)?'Móvil':'Escritorio';
   const browser=/Edg\//.test(ua)?'Edge':/Firefox\//.test(ua)?'Firefox':/Chrome\//.test(ua)?'Chrome':/Safari\//.test(ua)?'Safari':'Otro';
   const os=/iPhone|iPad|Mac OS X/i.test(ua)?'Apple':/Android/i.test(ua)?'Android':/Windows/i.test(ua)?'Windows':/Linux/i.test(ua)?'Linux':'Otro';
   return {device,browser,os};
@@ -230,7 +231,7 @@ async function eventEndpoint(req,env){
   if(b.event==='page'&&consent.policy_version==='2026-10-ip7'){
     const ip=clientIp(req),cf=req.cf||{};
     if(ip)try{await env.DB.prepare('INSERT INTO network_visits(at,cid,ip,page,country,region,city) VALUES (?,?,?,?,?,?,?)')
-      .bind(now(),b.cid,ip,path,country,text(cf.region||'Desconocida',64),text(cf.city||'',64)).run();}catch(_){}
+      .bind(now(),b.cid,ip,path,country,autonomousCommunity(country,cf.region,cf.regionCode),'').run();}catch(_){}
   }
   return json({ok:true});
 }
