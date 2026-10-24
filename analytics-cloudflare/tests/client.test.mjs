@@ -117,7 +117,7 @@ test('gráficos reales, histograma de 24 horas y tablas con porcentajes',async()
  assert.equal(doc.getElementById('flash').classList.contains('visible'),false);
  assert.ok(doc.querySelector('#chartMain svg.chart-plot'),'El resumen debe tener un gráfico SVG');
  assert.ok(doc.querySelector('#analyticsTrend svg.chart-plot'),'Analítica debe tener una serie temporal');
- assert.ok(doc.querySelectorAll('#chartMain svg.chart-point').length>=2);
+ assert.ok(doc.querySelectorAll('#chartMain svg .chart-point').length>=2);
  assert.equal(doc.querySelectorAll('#hourBars button.hour-bar').length,24);
  assert.match(doc.getElementById('hourPeak').textContent,/1 solicitudes/);
  doc.querySelector('#hourBars .hour-column:nth-child(17) button.hour-bar').click();
