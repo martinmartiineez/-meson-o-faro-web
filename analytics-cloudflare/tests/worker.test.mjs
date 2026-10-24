@@ -49,3 +49,18 @@ test('las rutas inexistentes no activan el rastreo consentido',async()=>{
   await Promise.all(x.pending);
   assert.ok(!x.queries.some(q=>q.sql.includes('page_hits')));
 });
+
+test('la web pública lleva cabeceras de protección sin impedir la cámara del escáner de gestión',async()=>{
+  for(const page of ['/','/carta.html','/menu-dia.html','/gestion/','/sorteo/']){
+    const x=fixture(),r=await worker.fetch(new Request('https://mesonofaro.es'+page),x.env,x.ctx);
+    assert.equal(r.status,200,page);
+    assert.equal(r.headers.get('X-Content-Type-Options'),'nosniff',page);
+    assert.equal(r.headers.get('Referrer-Policy'),'strict-origin-when-cross-origin',page);
+    if(page==='/gestion/'||page==='/sorteo/'){
+      assert.equal(r.headers.get('Permissions-Policy'),null,'No bloquear acceso a cámara del escáner '+page);
+    }else{
+      assert.match(r.headers.get('Permissions-Policy')||'',/camera=\(\)/,page);
+    }
+    await Promise.all(x.pending);
+  }
+});
